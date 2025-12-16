@@ -1,0 +1,73 @@
+// RetroBoy Shader - AGSL Android (API 33+)
+
+uniform shader inputFrame;
+uniform float scaleFactor; // 4.0 to 48.0
+
+// Game Boy Palette (4 authentic green tones)
+const float4 palette0 = float4(0.06, 0.22, 0.12, 1.0);  // #0F381F
+const float4 palette1 = float4(0.19, 0.38, 0.19, 1.0);  // #306230
+const float4 palette2 = float4(0.48, 0.67, 0.49, 1.0);  // #7BAC7D
+const float4 palette3 = float4(0.68, 0.85, 0.68, 1.0);  // #AED9AE
+
+// Bayer 4x4 Matrix for ordered dithering
+float getBayerValue(int x, int y) {
+    int ix = x % 4;
+    int iy = y % 4;
+
+    // Row 0
+    if (iy == 0 && ix == 0) return 0.0/16.0;
+    if (iy == 0 && ix == 1) return 8.0/16.0;
+    if (iy == 0 && ix == 2) return 2.0/16.0;
+    if (iy == 0 && ix == 3) return 10.0/16.0;
+
+    // Row 1
+    if (iy == 1 && ix == 0) return 12.0/16.0;
+    if (iy == 1 && ix == 1) return 4.0/16.0;
+    if (iy == 1 && ix == 2) return 14.0/16.0;
+    if (iy == 1 && ix == 3) return 6.0/16.0;
+
+    // Row 2
+    if (iy == 2 && ix == 0) return 3.0/16.0;
+    if (iy == 2 && ix == 1) return 11.0/16.0;
+    if (iy == 2 && ix == 2) return 1.0/16.0;
+    if (iy == 2 && ix == 3) return 9.0/16.0;
+
+    // Row 3
+    if (iy == 3 && ix == 0) return 15.0/16.0;
+    if (iy == 3 && ix == 1) return 7.0/16.0;
+    if (iy == 3 && ix == 2) return 13.0/16.0;
+    return 5.0/16.0;
+}
+
+float4 getPaletteColor(int index) {
+    if (index == 0) return palette0;
+    if (index == 1) return palette1;
+    if (index == 2) return palette2;
+    return palette3;
+}
+
+float4 main(float2 fragCoord) {
+    // 1. PIXELATION
+    float2 pixelSize = float2(scaleFactor, scaleFactor);
+    float2 pixelCoord = floor(fragCoord / pixelSize);
+    float2 samplingCoord = (pixelCoord + 0.5) * pixelSize;
+
+    // Sample input shader
+    float4 color = inputFrame.eval(samplingCoord);
+
+    // 2. LUMINANCE CONVERSION
+    float luma = dot(color.rgb, float3(0.299, 0.587, 0.114));
+
+    // 3. BAYER DITHERING
+    int x = int(fragCoord.x);
+    int y = int(fragCoord.y);
+    float threshold = getBayerValue(x, y);
+
+    // Apply dithering bias
+    float ditheredLuma = luma + (threshold - 0.5) * 0.25;
+
+    // 4. PALETTE QUANTIZATION
+    int paletteIdx = int(clamp(ditheredLuma * 4.0, 0.0, 3.999));
+
+    return getPaletteColor(paletteIdx);
+}
