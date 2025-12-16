@@ -21,7 +21,7 @@ LCDify is an Android tool that converts modern media into authentic 4-tone monoc
 ## Why LCDify?
 
 ### A Creative Production Tool
-LCDify isn't just another Instagram filter—it's an authoring pipeline for creating authentic Game Boy-style content from real video sources.
+LCDify isn't just another filter. it's an authoring pipeline for creating authentic Game Boy-style content from real video sources.
 
 **Use Cases:**
 - Retro cinematics for games and applications
@@ -177,13 +177,13 @@ Uses a 4×4 ordered matrix to distribute quantization error and simulate graysca
 
 ## Project Philosophy
 
-LCDify is designed as a creative production tool, not just a simple Instagram filter. The goal is to provide creators with a professional, performant way to generate authentic Game Boy content from real video sources.
+LCDify is designed as a creative production tool, not just a simple filter. The goal is to provide creators with a professional, performant way to generate authentic Game Boy content from real video sources.
 
 The shader prioritizes visual authenticity (fidelity to original hardware) while offering the flexibility needed for modern creative projects.
 
 ---
 
-## 🙏 Credits
+## Credits
 
 **Technologies:**
 - Android Graphics Shading Language (AGSL)
