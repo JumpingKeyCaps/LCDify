@@ -131,10 +131,10 @@ Uses a 4×4 ordered matrix to distribute quantization error and simulate graysca
 
 ## Roadmap
 
-### Phase 1 - MVP (Week 1) 
-- [x] Functional AGSL shader
-- [x] Basic UI (selection, preview, export)
-- [x] Simple image processing
+### Phase 1 - MVP  
+- [ ] Functional AGSL shader
+- [ ] Basic UI (selection, preview, export)
+- [ ] Simple image processing
 - [ ] Video processing with progress
 
 ### Phase 2 - Enhancements
