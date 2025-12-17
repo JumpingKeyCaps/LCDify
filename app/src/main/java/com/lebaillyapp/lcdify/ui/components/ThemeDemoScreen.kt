@@ -175,7 +175,7 @@ fun GameBoyButton(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onBackground
+            color = Color(0xFF3D4D77)
         )
     }
 }
@@ -204,7 +204,7 @@ fun GameBoySecondaryButton(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onBackground
+            color = Color(0xFF3D4D77)
         )
     }
 }
@@ -238,7 +238,7 @@ fun GameBoySettingButton(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onBackground
+            color = Color(0xFF3D4D77)
         )
     }
 }
