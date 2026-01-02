@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.lebaillyapp.lcdify.ui.components.LCDifyFirstStep
 import com.lebaillyapp.lcdify.ui.components.ThemeDemoScreen
 import com.lebaillyapp.lcdify.ui.theme.LCDifyTheme
 
@@ -50,7 +51,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             LCDifyTheme {
                 //Screen composition to test app theme (game boy retro color style)
-                ThemeDemoScreen()
+                //ThemeDemoScreen()
+
+
+                LCDifyFirstStep(drawableId = R.drawable.zina_10)
+
             }
         }
     }
