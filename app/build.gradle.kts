@@ -52,7 +52,17 @@ dependencies {
 
     implementation("androidx.constraintlayout:constraintlayout-compose:1.1.1")
 
+    val media3Version = "1.2.1" // Version stable début 2026
 
+    // Le moteur de transformation
+    implementation("androidx.media3:media3-transformer:$media3Version")
+    // Pour appliquer les effets (shaders)
+    implementation("androidx.media3:media3-effect:$media3Version")
+    // Core & Common (indispensable pour les types de données)
+    implementation("androidx.media3:media3-common:$media3Version")
+    // Pour le lecteur final (aperçu du résultat)
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-ui:$media3Version")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
