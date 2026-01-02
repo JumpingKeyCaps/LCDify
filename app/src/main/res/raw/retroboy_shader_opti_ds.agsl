@@ -1,139 +1,60 @@
-// RetroBoy Shader v2.0 - AGSL Android (API 33+)
-// Optimized for downscaled processing pipeline
-
 uniform shader inputFrame;
-uniform float scaleFactor;      // Adjusted for working resolution (auto-calculated)
-uniform float gridIntensity;    // 0.0 to 1.0 (recommended: 0.12)
-uniform float gridSize;         // 1.0 to 4.0 (pixel grid size, recommended: 2.0)
-uniform float ditheringStrength; // 0.0 to 1.0 (recommended: 0.25)
+uniform float2 res;
+uniform float2 imgRes;
+uniform float scaleFactor;
+uniform float gridIntensity;
+uniform float gridSize;
+uniform float ditheringStrength;
 
-// Game Boy DMG-01 Authentic Palette
-const float4 palette0 = float4(0.06, 0.22, 0.12, 1.0);  // #0F381F - Darkest
-const float4 palette1 = float4(0.19, 0.38, 0.19, 1.0);  // #306230 - Dark
-const float4 palette2 = float4(0.48, 0.67, 0.49, 1.0);  // #7BAC7D - Light
-const float4 palette3 = float4(0.68, 0.85, 0.68, 1.0);  // #AED9AE - Lightest
+// Palette dynamique via Uniforms
+uniform half4 palette0;
+uniform half4 palette1;
+uniform half4 palette2;
+uniform half4 palette3;
 
-// Optimized Bayer 4x4 Matrix (lookup table)
 float getBayerValue(int x, int y) {
-    int ix = x & 3;  // Modulo 4 optimization (bitwise AND)
-    int iy = y & 3;
-
-    // Bayer matrix as lookup
+    int ix = int(mod(float(x), 4.0));
+    int iy = int(mod(float(y), 4.0));
     int index = iy * 4 + ix;
-
-    // Unrolled lookup (faster than nested ifs)
-    if (index == 0)  return 0.0/16.0;
-    if (index == 1)  return 8.0/16.0;
-    if (index == 2)  return 2.0/16.0;
-    if (index == 3)  return 10.0/16.0;
-    if (index == 4)  return 12.0/16.0;
-    if (index == 5)  return 4.0/16.0;
-    if (index == 6)  return 14.0/16.0;
-    if (index == 7)  return 6.0/16.0;
-    if (index == 8)  return 3.0/16.0;
-    if (index == 9)  return 11.0/16.0;
-    if (index == 10) return 1.0/16.0;
-    if (index == 11) return 9.0/16.0;
-    if (index == 12) return 15.0/16.0;
-    if (index == 13) return 7.0/16.0;
-    if (index == 14) return 13.0/16.0;
-    return 5.0/16.0;
+    if (index == 0) return 0.0/16.0; if (index == 1) return 8.0/16.0;
+    if (index == 2) return 2.0/16.0; if (index == 3) return 10.0/16.0;
+    if (index == 4) return 12.0/16.0; if (index == 5) return 4.0/16.0;
+    if (index == 6) return 14.0/16.0; if (index == 7) return 6.0/16.0;
+    if (index == 8) return 3.0/16.0; if (index == 9) return 11.0/16.0;
+    if (index == 10) return 1.0/16.0; if (index == 11) return 9.0/16.0;
+    if (index == 12) return 15.0/16.0; if (index == 13) return 7.0/16.0;
+    if (index == 14) return 13.0/16.0; return 5.0/16.0;
 }
 
-// Optimized palette lookup
-float4 getPaletteColor(int index) {
+half4 getPaletteColor(int index) {
     if (index == 0) return palette0;
     if (index == 1) return palette1;
     if (index == 2) return palette2;
     return palette3;
 }
 
-// LCD Grid Pattern Generator
-// Simulates the visible LCD pixel grid of Game Boy DMG
-float getLCDGrid(float2 coord, float size) {
-    float2 gridPos = mod(coord, size);
-
-    // Grid line thickness (15% on each edge)
-    float threshold = size * 0.15;
-
-    // Check if we're on grid lines
-    float gridH = step(gridPos.y, threshold) + step(size - threshold, gridPos.y);
-    float gridV = step(gridPos.x, threshold) + step(size - threshold, gridPos.x);
-
-    // Combine horizontal and vertical
-    return min(gridH + gridV, 1.0);
-}
-
 float4 main(float2 fragCoord) {
-    // ============================================================
-    // STAGE 1: PIXELATION
-    // Virtual downsampling to create pixel blocks
-    // ============================================================
-    float2 pixelSize = float2(scaleFactor, scaleFactor);
-    float2 pixelCoord = floor(fragCoord / pixelSize);
-    float2 samplingCoord = (pixelCoord + 0.5) * pixelSize;
+    float2 ratio = res / imgRes;
+    float scale = max(ratio.x, ratio.y);
+    float2 viewSize = imgRes * scale;
+    float2 offset = (viewSize - res) * 0.5;
 
-    // Sample input frame at pixelated coordinates
-    float4 color = inputFrame.eval(samplingCoord);
+    float2 sourceCoord = (fragCoord + offset) / scale;
+    float2 pixelatedSource = floor(sourceCoord / (scaleFactor / scale)) * (scaleFactor / scale);
 
-    // ============================================================
-    // STAGE 2: LUMINANCE CONVERSION
-    // Convert RGB to grayscale using perceptual weights
-    // ============================================================
-    float luma = dot(color.rgb, float3(0.299, 0.587, 0.114));
+    half4 color = half4(inputFrame.eval(pixelatedSource));
 
-    // ============================================================
-    // STAGE 3: BAYER DITHERING
-    // Ordered dithering to simulate grayscale with 4 colors
-    // ============================================================
-    int x = int(fragCoord.x);
-    int y = int(fragCoord.y);
-    float threshold = getBayerValue(x, y);
+    float luma = dot(color.rgb, half3(0.299, 0.587, 0.114));
+    int x = int(fragCoord.x / scaleFactor);
+    int y = int(fragCoord.y / scaleFactor);
+    float dither = luma + (getBayerValue(x, y) - 0.5) * ditheringStrength;
 
-    // Apply dithering with configurable strength
-    float ditheredLuma = luma + (threshold - 0.5) * ditheringStrength;
+    int paletteIdx = int(clamp(dither * 4.0, 0.0, 3.999));
+    half4 finalColor = getPaletteColor(paletteIdx);
 
-    // ============================================================
-    // STAGE 4: PALETTE QUANTIZATION
-    // Map luminance to 4-color Game Boy palette
-    // ============================================================
-    int paletteIdx = int(clamp(ditheredLuma * 4.0, 0.0, 3.999));
-    float4 finalColor = getPaletteColor(paletteIdx);
+    float2 gridPos = mod(fragCoord, gridSize);
+    float grid = step(gridPos.y, gridSize * 0.15) + step(gridPos.x, gridSize * 0.15);
+    finalColor.rgb *= (1.0 - clamp(grid, 0.0, 1.0) * gridIntensity);
 
-    // ============================================================
-    // STAGE 5: LCD GRID OVERLAY
-    // Simulate visible LCD pixel structure
-    // ============================================================
-    float grid = getLCDGrid(fragCoord, gridSize);
-
-    // Darken grid lines (authentic LCD appearance)
-    finalColor.rgb = finalColor.rgb * (1.0 - grid * gridIntensity);
-
-    // ============================================================
-    // OUTPUT
-    // ============================================================
     return finalColor;
 }
-
-// ============================================================
-// USAGE NOTES FOR DOWNSCALED PIPELINE
-// ============================================================
-//
-// When processing at reduced resolution (e.g., 640x360 instead of 1920x1080):
-//
-// 1. Calculate adjusted scaleFactor:
-//    adjustedSF = originalSF * (workingWidth / sourceWidth)
-//    Example: 16 * (640 / 1920) = 5.33
-//
-// 2. This produces IDENTICAL visual result:
-//    - 1920÷16 = 120 virtual pixels
-//    - 640÷5.33 = 120 virtual pixels (same!)
-//
-// 3. Performance gain: ~9x faster for 640x360 vs 1080p
-//
-// 4. Recommended configurations:
-//    - FAST:     480x270,  scaleFactor = 4.0,  gridSize = 1.5
-//    - BALANCED: 640x360,  scaleFactor = 5.33, gridSize = 2.0
-//    - QUALITY:  960x540,  scaleFactor = 8.0,  gridSize = 2.5
-//
-// ============================================================
