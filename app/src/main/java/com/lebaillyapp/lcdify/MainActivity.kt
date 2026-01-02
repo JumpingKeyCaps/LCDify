@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
                 //ThemeDemoScreen()
 
 
-                LCDifyFirstStep(drawableId = R.drawable.zina_10)
+                LCDifyFirstStep(drawableId = R.drawable.zina_idle_good)
 
             }
         }

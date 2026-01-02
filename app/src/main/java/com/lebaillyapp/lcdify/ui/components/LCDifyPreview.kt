@@ -37,9 +37,9 @@ fun LCDifyFirstStep(drawableId: Int) {
     }
 
     // --- ÉTATS DES RÉGLAGES ---
-    var scaleFactor by remember { mutableFloatStateOf(16f) }
-    var ditheringStrength by remember { mutableFloatStateOf(0.25f) }
-    var gridIntensity by remember { mutableFloatStateOf(0.20f) } // L'opacité de la grille
+    var scaleFactor by remember { mutableFloatStateOf(6f) }
+    var ditheringStrength by remember { mutableFloatStateOf(0.05f) }
+    var gridIntensity by remember { mutableFloatStateOf(0.80f) } // L'opacité de la grille
     var gridSize by remember { mutableFloatStateOf(2.0f) }      // La taille de la maille
 
     // --- ÉTATS DE LA PALETTE ---
@@ -138,7 +138,7 @@ fun LCDifyFirstStep(drawableId: Int) {
                 SettingSlider(
                     label = "Grid Opacity",
                     value = gridIntensity,
-                    range = 0f..0.8f,
+                    range = 0f..1f,
                     isPercentage = true,
                     onValueChange = { gridIntensity = it }
                 )
@@ -146,7 +146,7 @@ fun LCDifyFirstStep(drawableId: Int) {
                 SettingSlider(
                     label = "Grid Mesh Size",
                     value = gridSize,
-                    range = 1f..8f,
+                    range = 0.90f..1.0f,
                     onValueChange = { gridSize = it }
                 )
             }
@@ -163,7 +163,7 @@ fun SettingSlider(
     onValueChange: (Float) -> Unit
 ) {
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
-        val displayValue = if (isPercentage) "${(value * 100).toInt()}%" else value.toInt().toString()
+        val displayValue = if (isPercentage) "${(value * 100).toInt()}%" else value.toString()
         Text(text = "$label: $displayValue", style = MaterialTheme.typography.labelMedium)
         Slider(
             value = value,
