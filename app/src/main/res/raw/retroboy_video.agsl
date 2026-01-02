@@ -1,0 +1,60 @@
+uniform shader inputFrame;
+uniform float2 res;
+uniform float2 imgRes;
+uniform float scaleFactor;
+uniform float ditheringStrength;
+uniform float gridIntensity;
+uniform float gridSize;
+
+uniform half4 palette0;
+uniform half4 palette1;
+uniform half4 palette2;
+uniform half4 palette3;
+
+// Palette & Bayer (identique à ton shader actuel)
+float getBayerValue(int x, int y) {
+    int ix = int(mod(float(x), 4.0));
+    int iy = int(mod(float(y), 4.0));
+    int index = iy * 4 + ix;
+    if (index == 0) return 0.0/16.0; if (index == 1) return 8.0/16.0;
+    if (index == 2) return 2.0/16.0; if (index == 3) return 10.0/16.0;
+    if (index == 4) return 12.0/16.0; if (index == 5) return 4.0/16.0;
+    if (index == 6) return 14.0/16.0; if (index == 7) return 6.0/16.0;
+    if (index == 8) return 3.0/16.0; if (index == 9) return 11.0/16.0;
+    if (index == 10) return 1.0/16.0; if (index == 11) return 9.0/16.0;
+    if (index == 12) return 15.0/16.0; if (index == 13) return 7.0/16.0;
+    if (index == 14) return 13.0/16.0; return 5.0/16.0;
+}
+
+half4 main(float2 fragCoord) {
+    // Calcul du Center Crop pour la vidéo
+    float2 ratio = res / imgRes;
+    float scale = max(ratio.x, ratio.y);
+    float2 viewSize = imgRes * scale;
+    float2 offset = (viewSize - res) * 0.5;
+
+    float2 sourceCoord = (fragCoord + offset) / scale;
+    float2 pixelatedSource = floor(sourceCoord / (scaleFactor / scale)) * (scaleFactor / scale);
+
+    half4 color = half4(inputFrame.eval(pixelatedSource));
+
+    float luma = dot(color.rgb, half3(0.299, 0.587, 0.114));
+    int x = int(fragCoord.x / scaleFactor);
+    int y = int(fragCoord.y / scaleFactor);
+    float dither = luma + (getBayerValue(x, y) - 0.5) * ditheringStrength;
+
+    int paletteIdx = int(clamp(dither * 4.0, 0.0, 3.999));
+
+    half4 finalColor;
+    if (paletteIdx == 0) finalColor = palette0;
+    else if (paletteIdx == 1) finalColor = palette1;
+    else if (paletteIdx == 2) finalColor = palette2;
+    else finalColor = palette3;
+
+    // Grid
+    float2 gridPos = mod(fragCoord, gridSize);
+    float grid = step(gridPos.y, gridSize * 0.15) + step(gridPos.x, gridSize * 0.15);
+    finalColor.rgb *= (1.0 - clamp(grid, 0.0, 1.0) * gridIntensity);
+
+    return finalColor;
+}
