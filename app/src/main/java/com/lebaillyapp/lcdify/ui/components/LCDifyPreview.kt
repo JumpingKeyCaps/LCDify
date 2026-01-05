@@ -45,10 +45,13 @@ fun LCDifyFirstStep(drawableId: Int) {
     // --- ÉTATS DE LA PALETTE ---
     var palette by remember {
         mutableStateOf(listOf(
-            Color(0xFF0F381F), Color(0xFF306230),
-            Color(0xFF7BAC7D), Color(0xFFAED9AE)
+            Color(0xFF1E3D1F), // darkest (vert très sombre mais pas noir)
+            Color(0xFF4E6B2F), // dark mid olive
+            Color(0xFF9DBA3A), // light mid jaune-vert dominant
+            Color(0xFFD6E86A)  // lightest jaune LCD
         ))
     }
+
     var selectedToneIndex by remember { mutableIntStateOf(0) }
 
     Column(modifier = Modifier.fillMaxSize()) {
