@@ -9,6 +9,8 @@ import androidx.annotation.RawRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +54,10 @@ fun LCDifyFirstStep(drawableId: Int) {
         ))
     }
 
+    var paletteB by remember { mutableStateOf(listOf( Color(0xFF0F381F), Color(0xFF306230), Color(0xFF7BAC7D), Color(0xFFAED9AE) )) }
+
+
+
     var selectedToneIndex by remember { mutableIntStateOf(0) }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -78,7 +84,7 @@ fun LCDifyFirstStep(drawableId: Int) {
         )
 
         Card(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(26.dp).weight(1f),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             // Scrollable au cas où les sliders dépassent sur petit écran
