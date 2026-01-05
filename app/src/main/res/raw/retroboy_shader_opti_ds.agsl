@@ -47,9 +47,18 @@ float4 main(float2 fragCoord) {
     float luma = dot(color.rgb, half3(0.299, 0.587, 0.114));
     int x = int(fragCoord.x / scaleFactor);
     int y = int(fragCoord.y / scaleFactor);
-    float dither = luma + (getBayerValue(x, y) - 0.5) * ditheringStrength;
 
-    int paletteIdx = int(clamp(dither * 4.0, 0.0, 3.999));
+   // float dither = luma + (getBayerValue(x, y) - 0.5) * ditheringStrength;
+    float perceptual = pow(luma, 0.8); // boost clair, très léger
+    float dither = perceptual + (getBayerValue(x, y) - 0.5) * ditheringStrength;
+
+
+    // int paletteIdx = int(clamp(dither * 4.0, 0.0, 3.999));
+    float biased = clamp(dither + 0.08, 0.0, 0.999);
+    int paletteIdx = int(biased * 4.0);
+
+
+
     half4 finalColor = getPaletteColor(paletteIdx);
 
     float2 gridPos = mod(fragCoord, gridSize);
