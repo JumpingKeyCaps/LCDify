@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,11 +30,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.lebaillyapp.lcdify.data.repository.VideoRepository
 import com.lebaillyapp.lcdify.ui.components.LCDifyFirstStep
 import com.lebaillyapp.lcdify.ui.components.ThemeDemoScreen
 import com.lebaillyapp.lcdify.ui.theme.LCDifyTheme
+import com.lebaillyapp.lcdify.ui.viewmodel.VideoProcessingViewModel
+import kotlin.getValue
 
 class MainActivity : ComponentActivity() {
+
+    private val repository by lazy { VideoRepository(this) }
+    private val viewModel by viewModels<VideoProcessingViewModel> {
+        viewModelFactory {
+            initializer { VideoProcessingViewModel(repository) }
+        }
+    }
+
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -53,8 +69,18 @@ class MainActivity : ComponentActivity() {
                 //Screen composition to test app theme (game boy retro color style)
                 //ThemeDemoScreen()
 
+                //todo - single bitmap demo
+                LCDifyFirstStep(drawableId = R.drawable.zina_serrious)
 
-                LCDifyFirstStep(drawableId = R.drawable.zina_idle_good)
+
+
+                //todo - video processing screen demo
+               // VideoProcessingScreen(
+                //    viewModel = viewModel,
+                //    videoRes = R.raw.test_video
+              //  )
+
+
 
             }
         }
