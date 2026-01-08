@@ -8,9 +8,10 @@
 [![AGSL](https://img.shields.io/badge/Shader-AGSL-FF6F00)](https://developer.android.com/develop/ui/views/graphics/agsl)
 
 
-**Transform any video or image into authentic Game Boy LCD rendering**
 
-LCDify is an Android tool that converts modern media into authentic 4-tone monochrome LCD visuals with pixel-perfect fidelity to the 1990s Game Boy screen. Built with GPU-optimized AGSL shaders for professional-grade performance.
+**GPU Video Pipeline for authentic Retro-LCD rendering.**
+
+LCDify is an advanced Android media processing engine that transforms modern video into pixel-perfect, dithered LCD visuals. Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for maximum performance and fidelity.
 
 <p align="center">
   <img src="docs/demo.gif" alt="LCDify Demo" width="400"/>
@@ -20,61 +21,62 @@ LCDify is an Android tool that converts modern media into authentic 4-tone monoc
 
 ## Why LCDify?
 
-### A Creative Production Tool
-LCDify isn't just another filter. it's an authoring pipeline for creating authentic Game Boy-style content from real video sources.
+### High-Performance Engineering
+LCDify is built for creators who need heavy-duty video processing. By bypassing the CPU for pixel manipulation, it handles high-resolution video encoding with good stability.
 
-**Use Cases:**
-- Retro cinematics for games and applications
-- Nostalgic social media stories and content
-- 90s-style music videos and short films
-- Visual novels and interactive narratives
-- Artistic projects and experimental visuals
+**Key Technical Advantages:**
+- **Zero-Copy Architecture**: Pixels stay in VRAM. No expensive Bitmap conversions.
+- **Hardware-Accelerated**: Uses `MediaCodec` and `HardwareRenderer` for 1:1 GPU-to-Encoder throughput.
+- **AGSL Power**: Leverages Android Graphics Shading Language for single-pass complex math (Bayer, Luma, Quantization).
+- **Production-Ready**: Designed for offline preprocessing of long-form video content.
 
-### Key Features
--  **Authentic** - Faithful to original Game Boy DMG rendering (4-tone green palette, Bayer dithering)
--  **Flexible** - Works with any video or image source
--  **Performant** - GPU-accelerated single-pass AGSL shader
--  **Adjustable** - Real-time pixelation control via Scale Factor
--  **Production-Ready** - Async preprocessing pipeline for long videos
+---
+## Versatility: Beyond LCDify
+- While this project focuses on Game Boy aesthetics, the underlying Tank Pipeline is designed as a universal GPU video processor.
+- Because the engine is decoupled from the visual logic, you can swap the AGSL shader to apply any real-time transformation : from VHS glitches and ASCII art to advanced color grading.
+- LCDify isn't just a filter; it's a robust infrastructure for anyone looking to bridge the gap between low-level Android MediaCodec and high-level AGSL shading.
+
 
 ---
 
 ## Features
 
-### Media Processing
-- **Multi-format support**: MP4, MOV, JPG, PNG
-- **Async preprocessing**: Background processing with progress tracking
-- **Real-time preview**: See effects before final render
-- **High-quality export**: Save processed videos and images
+### Media Processing (V2 Engine)
+- **True GPU Pipeline**: HardwareBuffer → RuntimeShader → Surface Encoder.
+- **Format Support**: MP4, MOV, and high-res JPEG/PNG.
+- **Frame-Perfect Sync**: VSync-locked encoding for jitter-free output video.
+- **Background Processing**: Coroutine-powered pipeline with real-time progress tracking.
 
 ### Visual Effects
-The shader applies three transformations in a single GPU pass:
+The custom AGSL shader replicates the classic LCD aesthetic:
 
-1. **Pixelation** - Controlled resolution reduction (adjustable Scale Factor)
-2. **Palette Quantization** - Authentic 4-color Game Boy palette
-3. **Bayer Dithering** - 4x4 ordered matrix for grayscale simulation
+1. **Precision Pixelation**: Integer-based downsampling for razor-sharp "fat pixels".
+2. **Dynamic Palette Quantization**: Maps any source to a customizable 4-tone palette.
+3. **Bayer Dithering**: 4x4 ordered matrix for high-fidelity grayscale simulation.
+4. **LCD Grid Overlay**: Optional sub-pixel grid for authentic screen texture.
 
 ### User Interface
--  **Scale Factor Slider** - Control pixelation level (4.0 to 48.0)
--  **Palette Preview** - Visualize the 4 green tones in use
--  **Game Boy Theme** - UI consistent with retro aesthetic
--  **Easy Export** - Intuitive selection and save buttons
+- **Real-time Parameter Control**: Adjust scale, grid intensity, and dithering on the fly.
+- **Dynamic Palette Switching**: Instant visual updates via Uniform injection.
+- **Modern Compose UI**: Material 3 interface with a retro-tech twist.
 
 ---
 
 ## Technical Architecture
 
-### Processing Pipeline
+### The "Tank" Pipeline (API 33+)
 ```
-1. Media Selection (video or image)
-          ↓
-2. Frame Extraction (MediaCodec/MediaExtractor)
-          ↓
-3. AGSL Shader Application (GPU processing)
-          ↓
-4. Re-encoding (MediaMuxer)
-          ↓
-5. Save and Share
+[ MediaExtractor ] ──> [ Hardware Decoder ]
+                               ↓ 
+                (HardwareBuffer / Zero-Copy)
+                               ↓
+[ MediaMuxer ]     <── [ Hardware Encoder ]
+       ↑                       ↑ 
+  (Final MP4)              (Surface)
+                               ↑
+                    [ AGSL RuntimeShader ]
+                               ↑
+                  (Skia / HardwareRenderer)
 ```
 
 ### Tech Stack
@@ -89,6 +91,7 @@ The shader applies three transformations in a single GPU pass:
 - **RenderEffect** - Native shader application on surfaces
 - **MediaCodec** - Hardware-accelerated video encoding/decoding
 - **MediaMuxer** - Processed frame multiplexing
+- **HardwareRenderer & RenderNode**: Direct access to Android's internal Skia pipeline.
 - **Jetpack Compose** - Modern reactive UI
 - **Kotlin Coroutines** - Async processing with progress tracking
 
@@ -111,6 +114,15 @@ The Scale Factor determines the size of "virtual pixels". Higher values create l
 ```
 Virtual Resolution = Source Resolution / Scale Factor
 ```
+### Native Resolution Handling
+The shader operates in 1:1 coordinate space relative to the video source. It uses `inputFrame.eval()` with center-aligned sampling to ensure temporal stability across video frames.
+
+### Parameters (Uniforms)
+- `scaleFactor`: Size of the virtual pixels.
+- `ditheringStrength`: Intensity of the Bayer matrix.
+- `gridSize` & `gridIntensity`: Control over the LCD sub-pixel grid.
+- `palette0-3`: Four dynamic `half4` colors for quantization.
+
 
 Example with 1920x1080 and SF=16:
 - → 120×67 virtual pixels
@@ -132,22 +144,20 @@ Uses a 4×4 ordered matrix to distribute quantization error and simulate graysca
 ## Roadmap
 
 ### Phase 1 - MVP  
-- [ ] Functional AGSL shader
-- [ ] Basic UI (selection, preview, export)
-- [ ] Simple image processing
-- [ ] Video processing with progress
+- [x] Functional AGSL shader
+- [x] Basic UI (selection, preview, export)
+- [x] Simple image processing
+- [x] Video processing with progress
 
 ### Phase 2 - Enhancements
-- [ ] Multiple palettes (NES, CGA, Amber, etc.)
-- [ ] Scale Factor presets ("Game Boy Classic", "Retro Soft", "Pixel Art")
-- [ ] Additional effects (scanlines, LCD blur, ghosting)
+- [x] Multiple palettes (NES, CGA, Amber, etc.)
+- [x] Scale Factor presets ("Game Boy Classic", "Retro Soft", "Pixel Art")
 - [ ] Custom resolution support (not just 160×144)
 
-### Phase 3 - Production
-- [ ] Batch processing (multiple videos)
-- [ ] FFmpeg integration for exotic formats
-- [ ] Audio preservation in export
-- [ ] Direct social media sharing
+### Phase 3 - Core Engine (Current) 
+- [x] Zero-Copy GPU Video Pipeline
+- [x] Async processing with Progress API
+- [x] Basic UI for parameter tuning
 
 ### Phase 4 - Advanced
 - [ ] Real-time mode for live camera
@@ -160,7 +170,9 @@ Uses a 4×4 ordered matrix to distribute quantization error and simulate graysca
 ## Technical Limitations
 
 ### Compatibility
-- Requires Android 13+ (AGSL and RenderEffect)
+- **Android 13+ ONLY**: Deep integration with `RuntimeShader` and `wrapHardwareBuffer`.
+- **Hardware Encoding**: Performance depends on the device's H.264/AVC encoder capabilities.
+- **Audio**: Focused on visual processing (Audio passthrough ).
 - No support for older Android versions (no OpenGL ES fallback planned)
 
 ### Performance
@@ -176,8 +188,7 @@ Uses a 4×4 ordered matrix to distribute quantization error and simulate graysca
 ---
 
 ## Project Philosophy
-
-LCDify is designed as a creative production tool, not just a simple filter. The goal is to provide creators with a professional, performant way to generate authentic Game Boy content from real video sources.
+LCDify isn't a toy filter—it's a **media engine**. It prioritizes technical efficiency and visual authenticity, giving developers and creators a robust tool to generate retro-digital aesthetics without the overhead of software-based rendering.
 
 The shader prioritizes visual authenticity (fidelity to original hardware) while offering the flexibility needed for modern creative projects.
 
