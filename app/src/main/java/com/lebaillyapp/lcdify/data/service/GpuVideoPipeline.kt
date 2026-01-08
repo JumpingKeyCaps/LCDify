@@ -11,6 +11,38 @@ import android.view.Surface
 import androidx.annotation.RawRes
 import java.io.File
 
+/**
+ * Pipeline vidéo GPU pour Android
+ *
+ * Objectif :
+ * Fournir un traitement vidéo frame par frame en appliquant des shaders RuntimeShader
+ * directement sur une Surface GPU, évitant les problèmes du rendu logiciel CPU.
+ *
+ * Problématiques des approches classiques (CPU / Canvas offscreen) :
+ *  - Dessiner un shader GPU sur un Canvas CPU force le rendu logiciel.
+ *  - Peut échouer silencieusement ou générer des performances très mauvaises.
+ *  - La gestion CPU → Bitmap → shader CPU n'est pas fiable pour des shaders AGSL complexes.
+ *
+ * Avantages de cette implémentation :
+ *  - Les frames décodées passent directement sur une Surface GPU liée au shader.
+ *  - Le pipeline encode immédiatement le résultat GPU vers MediaCodec H.264.
+ *  - Élimine toute conversion Bitmap CPU → GPU intermédiaire.
+ *  - Gestion propre du flux MediaExtractor → MediaCodec decoder → GpuVideoPipeline → encoder → MediaMuxer.
+ *  - Progression frame par frame émise via callback.
+ *  - Annulation possible à tout moment grâce à `isCancelled`.
+ *
+ * Pipeline simplifié :
+ * 1. Extraction des métadonnées et sélection de la piste vidéo (MediaExtractor)
+ * 2. Configuration du decoder MediaCodec sur Surface GPU
+ * 3. Configuration du encoder MediaCodec avec Surface d'entrée
+ * 4. Boucle pipeline : décodage GPU → (shader GPU) → encodage H.264
+ * 5. Écriture finale avec MediaMuxer
+ *
+ * Notes :
+ *  - La Surface GPU sert de "pont" entre le decoder et l'encodeur, permettant au shader
+ *    de fonctionner directement sur les données GPU.
+ *  - Aucun Canvas CPU ou Bitmap intermédiaire n’est utilisé, garantissant performances et compatibilité.
+ */
 class GpuVideoPipeline(
     private val context: Context,
     @RawRes private val videoRes: Int,
