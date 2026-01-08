@@ -13,6 +13,31 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 
+/**
+ * Service de traitement vidéo V2 basé sur GPU
+ *
+ * Cette version remplace l'ancien VideoProcessingService qui utilisait un Canvas offscreen CPU.
+ * Problématique de l'ancien service :
+ *  - Dessiner un RuntimeShader GPU sur un Canvas CPU force le rendu logiciel.
+ *  - Certaines configurations échouent ou sont extrêmement lentes.
+ *  - Le pipeline CPU → Bitmap → shader CPU n'est pas fiable pour un vrai rendu GPU.
+ *
+ * Nouvelle approche :
+ *  - Utilisation de GpuVideoPipeline, qui applique le shader directement sur une Surface GPU.
+ *  - Pas de Canvas CPU intermédiaire : le transfert CPU → GPU est géré correctement.
+ *  - Compatible avec RuntimeShader et tous les shaders AGSL modernes.
+ *  - Plus performant et fiable sur tous les appareils.
+ *
+ * Pipeline simplifié :
+ * 1. Extraction métadonnées vidéo (MediaExtractor/MediaMetadataRetriever)
+ * 2. Décodage frame par frame sur GPU
+ * 3. Application du shader sur la Surface GPU via GpuVideoPipeline
+ * 4. Encodage H.264 (MediaCodec) et muxing final (MediaMuxer)
+ *
+ * Les états de progression sont émis via Flow (ProcessingState) et cancelable à tout moment.
+ */
+
+
 class VideoProcessingServiceV2(private val context: Context) {
 
     @Volatile
