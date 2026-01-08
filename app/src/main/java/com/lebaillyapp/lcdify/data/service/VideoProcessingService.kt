@@ -30,15 +30,25 @@ import java.io.File
 import kotlin.coroutines.coroutineContext
 
 /**
- * Service qui gère TOUT le pipeline de traitement vidéo
- *
- * Pipeline:
- * 1. Extraction métadonnées
- * 2. Décodage frame par frame (MediaMetadataRetriever)
- * 3. Application shader GPU (RuntimeShader)
- * 4. Encodage H.264 (MediaCodec)
- * 5. Muxing final (MediaMuxer)
- */
+* Ancien service de traitement vidéo - NE PAS UTILISER pour des shaders GPU réels
+*
+* Ce service applique un RuntimeShader (GPU) sur des Bitmaps via un Canvas CPU "offscreen".
+* Problématique :
+* 1. Un RuntimeShader est conçu pour être exécuté sur le GPU.
+* 2. Dessiner un shader GPU sur un canvas CPU force un rendu logiciel.
+* 3. Sur certaines configurations, cela échoue avec "software rendering doesn't support RuntimeShader".
+*
+* En résumé, cette approche fonctionne uniquement sur des Bitmaps classiques pour tests,
+* mais n’est pas fiable pour un vrai pipeline GPU. Il est préférable d’utiliser une Surface GPU
+* (via MediaCodec / Surface ou SurfaceTexture) pour passer la Bitmap au GPU.
+*
+* Pipeline approximatif du service :
+* 1. Extraction des métadonnées de la vidéo
+* 2. Décodage frame par frame via MediaMetadataRetriever
+* 3. Application du shader sur Bitmap CPU (problématique)
+* 4. Encodage H.264 via MediaCodec
+* 5. Muxing final via MediaMuxer
+*/
 class VideoProcessingService(private val context: Context) {
 
     private val shaderSource: String by lazy {
@@ -150,9 +160,9 @@ class VideoProcessingService(private val context: Context) {
                             totalFrames = totalFrames,
                             elapsedTimeMs = System.currentTimeMillis() - startTime
                         )
-                        emit(ProcessingState.Decoding(progress))
+                     //   emit(ProcessingState.Decoding(progress))
                         emit(ProcessingState.Processing(progress))
-                        emit(ProcessingState.Encoding(progress))
+                    //    emit(ProcessingState.Encoding(progress))
                     }
 
                     frameIndex++
