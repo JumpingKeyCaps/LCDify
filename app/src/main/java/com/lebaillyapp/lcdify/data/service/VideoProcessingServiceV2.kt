@@ -3,6 +3,7 @@ package com.lebaillyapp.lcdify.data.service
 import android.content.Context
 import android.net.Uri
 import androidx.annotation.RawRes
+import com.lebaillyapp.lcdify.R
 import com.lebaillyapp.lcdify.domain.ProcessingProgress
 import com.lebaillyapp.lcdify.domain.ProcessingState
 import com.lebaillyapp.lcdify.domain.ShaderConfig
@@ -22,12 +23,18 @@ class VideoProcessingServiceV2(private val context: Context) {
     @Volatile
     private var isCancelled = false
 
+
+    private val shaderSource: String by lazy {
+        context.resources.openRawResource(R.raw.retroboy_shader_video)
+            .bufferedReader()
+            .use { it.readText() }
+    }
+
     /**
      * Lance le traitement et expose un Flow d'états pour l'UI
      */
     fun processVideo(
         @RawRes videoRes: Int,
-        shaderSource: String,
         config: ShaderConfig
     ): Flow<ProcessingState> = callbackFlow {
         isCancelled = false
