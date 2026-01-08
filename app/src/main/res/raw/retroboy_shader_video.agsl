@@ -1,0 +1,68 @@
+uniform shader inputFrame;
+uniform float2 res; // Résolution de la vidéo (ex: 1080.0, 1920.0)
+uniform float scaleFactor;
+uniform float gridIntensity;
+uniform float gridSize;
+uniform float ditheringStrength;
+
+// Palette dynamique
+uniform half4 palette0;
+uniform half4 palette1;
+uniform half4 palette2;
+uniform half4 palette3;
+
+// Utilisation d'un tableau pour la performance GPU
+float getBayerValue(int x, int y) {
+    int ix = x % 4;
+    int iy = y % 4;
+    float bayer[16] = float[](
+        0.0, 0.5, 0.125, 0.625,
+        0.75, 0.25, 0.875, 0.375,
+        0.1875, 0.6875, 0.0625, 0.5625,
+        0.9375, 0.4375, 0.8125, 0.3125
+    );
+    return bayer[iy * 4 + ix];
+}
+
+half4 getPaletteColor(int index) {
+    if (index == 0) return palette0;
+    if (index == 1) return palette1;
+    if (index == 2) return palette2;
+    return palette3;
+}
+
+half4 main(float2 fragCoord) {
+    // 1. PIXELISATION 1:1
+    // On calcule le coin supérieur gauche du "gros pixel"
+    float2 pixelatedCoord = floor(fragCoord / scaleFactor) * scaleFactor;
+
+    // On échantillonne au centre du gros pixel pour la stabilité temporelle
+    half4 color = inputFrame.eval(pixelatedCoord + (scaleFactor * 0.5));
+
+    // 2. LUMINANCE & DITHERING
+    // Standard Rec. 709 pour la luma
+    float luma = dot(color.rgb, half3(0.2126, 0.7152, 0.0722));
+
+    // Coordonnées de la matrice de Bayer
+    int x = int(fragCoord.x / scaleFactor);
+    int y = int(fragCoord.y / scaleFactor);
+
+    // Application du dithering sur une courbe perceptuelle (gamma 0.8)
+    float perceptual = pow(luma, 0.8);
+    float dither = perceptual + (getBayerValue(x, y) - 0.5) * ditheringStrength;
+
+    // 3. INDEXATION PALETTE
+    // Le +0.08 est ton "bias" pour ajuster le seuil des tons sombres
+    int paletteIdx = int(clamp(dither * 4.0 + 0.08, 0.0, 3.99));
+    half4 finalColor = getPaletteColor(paletteIdx);
+
+    // 4. GRILLE LCD (Basée sur fragCoord pour être fixe par rapport aux pixels de sortie)
+    float2 gridPos = mod(fragCoord, gridSize);
+    float grid = step(gridPos.y, gridSize * 0.15) + step(gridPos.x, gridSize * 0.15);
+
+    // Application de la grille
+    finalColor.rgb *= (1.0 - clamp(grid, 0.0, 1.0) * gridIntensity);
+
+    // On force l'alpha à 1.0 pour l'encodeur vidéo
+    return half4(finalColor.rgb, 1.0);
+}
