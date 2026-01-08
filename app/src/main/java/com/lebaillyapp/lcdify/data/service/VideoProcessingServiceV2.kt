@@ -14,70 +14,54 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Service de traitement vidéo V2 basé sur GPU
- *
- * Cette version remplace l'ancien VideoProcessingService qui utilisait un Canvas offscreen CPU.
- * Problématique de l'ancien service :
- *  - Dessiner un RuntimeShader GPU sur un Canvas CPU force le rendu logiciel.
- *  - Certaines configurations échouent ou sont extrêmement lentes.
- *  - Le pipeline CPU → Bitmap → shader CPU n'est pas fiable pour un vrai rendu GPU.
- *
- * Nouvelle approche :
- *  - Utilisation de GpuVideoPipeline, qui applique le shader directement sur une Surface GPU.
- *  - Pas de Canvas CPU intermédiaire : le transfert CPU → GPU est géré correctement.
- *  - Compatible avec RuntimeShader et tous les shaders AGSL modernes.
- *  - Plus performant et fiable sur tous les appareils.
- *
- * Pipeline simplifié :
- * 1. Extraction métadonnées vidéo (MediaExtractor/MediaMetadataRetriever)
- * 2. Décodage frame par frame sur GPU
- * 3. Application du shader sur la Surface GPU via GpuVideoPipeline
- * 4. Encodage H.264 (MediaCodec) et muxing final (MediaMuxer)
- *
- * Les états de progression sont émis via Flow (ProcessingState) et cancelable à tout moment.
+ * Service de traitement vidéo V2 basé sur GPU (Android 13+)
+ * Orchestrateur du pipeline GpuVideoPipeline.
  */
-
-
 class VideoProcessingServiceV2(private val context: Context) {
 
     @Volatile
     private var isCancelled = false
 
     /**
-     * Point d'entrée principal - Retourne un Flow qui émet les états
+     * Lance le traitement et expose un Flow d'états pour l'UI
      */
-    fun processVideo(@RawRes videoRes: Int, config: ShaderConfig): Flow<ProcessingState> = callbackFlow {
+    fun processVideo(
+        @RawRes videoRes: Int,
+        shaderSource: String,
+        config: ShaderConfig
+    ): Flow<ProcessingState> = callbackFlow {
         isCancelled = false
         val startTime = System.currentTimeMillis()
 
         try {
-            // Crée le fichier de sortie
             val outputFile = createOutputFile()
 
-            // Instancie le pipeline GPU
+            // Initialisation du pipeline avec la config de l'utilisateur
             val pipeline = GpuVideoPipeline(
                 context = context,
                 videoRes = videoRes,
                 outputFile = outputFile,
+                shaderSource = shaderSource,
+                config = config, // Injection de la config (palette, scale, etc.)
                 onProgress = { currentFrame, totalFrames ->
-                    // Safe depuis n'importe quel thread
                     val progress = ProcessingProgress(
                         currentFrame = currentFrame,
                         totalFrames = totalFrames,
                         elapsedTimeMs = System.currentTimeMillis() - startTime
                     )
+                    // Utilisation de trySend pour ne pas bloquer le thread GPU
                     trySend(ProcessingState.Processing(progress))
                 },
                 isCancelled = { isCancelled }
             )
 
-            // Lancer le pipeline sur Default dispatcher
+            // On bascule sur Dispatchers.Default pour laisser le thread UI respirer
             withContext(Dispatchers.Default) {
                 pipeline.process()
             }
 
             if (isCancelled) {
-                outputFile.delete()
+                if (outputFile.exists()) outputFile.delete()
                 trySend(ProcessingState.Error("Processing cancelled by user"))
             } else {
                 val totalTime = System.currentTimeMillis() - startTime
@@ -85,26 +69,33 @@ class VideoProcessingServiceV2(private val context: Context) {
             }
 
         } catch (e: Exception) {
-            trySend(ProcessingState.Error(message = e.message ?: "Unknown error", exception = e))
+            // Log l'erreur ici si besoin
+            trySend(ProcessingState.Error(
+                message = e.message ?: "Unknown pipeline error",
+                exception = e
+            ))
         }
 
-        awaitClose { /* rien à nettoyer ici, le pipeline gère son release */ }
+        // Si le Flow est collecté via collectAsState ou similaire en Compose,
+        // awaitClose assure que l'annulation remonte bien jusqu'au pipeline.
+        awaitClose {
+            isCancelled = true
+        }
     }
 
     /**
-     * Annule le traitement en cours
+     * Permet une annulation manuelle via le bouton "Annuler" de ton UI
      */
     fun cancel() {
         isCancelled = true
     }
 
-    /**
-     * Crée le fichier de sortie dans Movies/LCDify/
-     */
     private fun createOutputFile(): File {
+        // Movies/LCDify/ est un bon choix pour la visibilité utilisateur
         val moviesDir = context.getExternalFilesDir("Movies") ?: context.filesDir
         val lcdifyDir = File(moviesDir, "LCDify")
         if (!lcdifyDir.exists()) lcdifyDir.mkdirs()
+
         val fileName = "lcdify_${System.currentTimeMillis()}.mp4"
         return File(lcdifyDir, fileName)
     }
