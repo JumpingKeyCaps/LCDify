@@ -20,6 +20,9 @@ Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for ma
 | Single bitmap Shader (settings) | Single bitmap Shader (palette tones) | Retro UI demo | 
 |:---:|:---:|:---:|
 | ![P1](screenshots/single_picture_demo_1.gif) | ![P2a](screenshots/single_picture_demo_2.gif) |  ![P2a](screenshots/uidemo.gif) |
+| Video processing flow | Video rendering demo 1 | Video rendering demo 2 | 
+|:---:|:---:|:---:|
+| ![P1](screenshots/comingsoon.gif) | ![P2a](screenshots/comingsoon.gif) |  ![P2a](screenshots/comingsoon.gif) |
 
 ---
 
