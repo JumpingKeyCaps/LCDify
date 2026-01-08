@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.annotation.RawRes
 import com.lebaillyapp.lcdify.data.service.VideoProcessingService
+import com.lebaillyapp.lcdify.data.service.VideoProcessingServiceV2
 import com.lebaillyapp.lcdify.domain.ProcessingState
 import com.lebaillyapp.lcdify.domain.ShaderConfig
 import kotlinx.coroutines.flow.Flow
@@ -15,7 +16,7 @@ import kotlinx.coroutines.flow.Flow
 class VideoRepository(
     context: Context
 ) {
-    private val videoProcessingService = VideoProcessingService(context)
+    private val videoProcessingService = VideoProcessingServiceV2(context)
 
     /**
      * Lance le traitement complet de la vidéo
