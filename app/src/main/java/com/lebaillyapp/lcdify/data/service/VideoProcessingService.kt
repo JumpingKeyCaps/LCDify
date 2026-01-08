@@ -14,6 +14,7 @@ import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.media.MediaMuxer
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import androidx.annotation.RawRes
 import com.lebaillyapp.lcdify.R
@@ -120,7 +121,7 @@ class VideoProcessingService(private val context: Context) {
                 // Extraire le frame à ce timestamp
                 val originalBitmap = retriever.getFrameAtTime(
                     currentTimeUs,
-                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+                    MediaMetadataRetriever.OPTION_CLOSEST
                 )
 
                 if (originalBitmap != null) {
@@ -142,8 +143,8 @@ class VideoProcessingService(private val context: Context) {
                         muxerStarted = true
                     }
 
-                    // Émettre progression **allégée** toutes les 5 frames
-                    if (frameIndex % 5 == 0 || frameIndex == totalFrames - 1) {
+                    // Émettre progression **allégée** toutes les 10 frames
+                    if (frameIndex % 10 == 0 || frameIndex == totalFrames - 1) {
                         val progress = ProcessingProgress(
                             currentFrame = frameIndex,
                             totalFrames = totalFrames,
@@ -350,7 +351,7 @@ class VideoProcessingService(private val context: Context) {
      * Crée le fichier de sortie dans Movies/LCDify/
      */
     private fun createOutputFile(): File {
-        val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+        val moviesDir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
         val lcdifyDir = File(moviesDir, "LCDify")
 
         if (!lcdifyDir.exists()) {
