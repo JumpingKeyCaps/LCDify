@@ -11,11 +11,15 @@
 
 **GPU Video Pipeline for authentic Retro-LCD rendering.**
 
-LCDify is an advanced Android media processing engine that transforms modern video into pixel-perfect, dithered LCD visuals. Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for maximum performance and fidelity.
+LCDify is an advanced Android media processing engine that transforms modern video into pixel-perfect, dithered LCD visuals.
 
-<p align="center">
-  <img src="docs/demo.gif" alt="LCDify Demo" width="400"/>
-</p>
+Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for maximum performance and fidelity.
+
+--
+
+| Single bitmap Shader (settings) | Single bitmap Shader (palette tones) | Retro UI demo | 
+|:---:|:---:|:---:|
+| ![P1](screenshots/single_picture_demo_1.gif) | ![P2a](screenshots/single_picture_demo_2.gif) |  ![P2a](screenshots/uidemo.gif) |
 
 ---
 
