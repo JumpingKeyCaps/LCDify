@@ -15,15 +15,29 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Service de traitement vidéo V2 basé sur GPU (Android 13+)
- * Orchestrateur du pipeline GpuVideoPipeline.
+ * # High-Level Video Processing Service (V2)
+ *
+ * This service orchestrates the GPU video processing pipeline (`GpuVideoPipeline`) and
+ * exposes the processing status as a Kotlin Flow to the UI layer.
+ *
+ * Key Features:
+ * - Asynchronous video processing on a background thread (Dispatchers.Default)
+ * - Real-time progress reporting through a Flow of `ProcessingState`
+ * - Supports manual cancellation from the UI
+ * - Automatically manages output file creation and cleanup in case of cancellation
+ * - Integrates with `ShaderConfig` to pass dynamic shader parameters to the GPU pipeline
+ *
+ * @property context Android context used for resource access and file storage.
  */
 class VideoProcessingServiceV2(private val context: Context) {
 
     @Volatile
     private var isCancelled = false
 
-
+    /**
+     * ## AGSL Shader Source
+     * Loads the AGSL shader source lazily from raw resources.
+     */
     private val shaderSource: String by lazy {
         context.resources.openRawResource(R.raw.retroboy_shader_video)
             .bufferedReader()
@@ -31,7 +45,15 @@ class VideoProcessingServiceV2(private val context: Context) {
     }
 
     /**
-     * Lance le traitement et expose un Flow d'états pour l'UI
+     * ## Process Video
+     * Starts video processing and emits a Flow of `ProcessingState` for UI consumption.
+     *
+     * This function creates the GPU pipeline, executes it on a background thread,
+     * and reports progress, success, or errors.
+     *
+     * @param videoRes Raw resource ID of the input video.
+     * @param config Shader configuration (palette, scale factor, grid, dithering).
+     * @return Flow of `ProcessingState` reflecting pipeline progress and completion.
      */
     fun processVideo(
         @RawRes videoRes: Int,
@@ -62,7 +84,7 @@ class VideoProcessingServiceV2(private val context: Context) {
                 isCancelled = { isCancelled }
             )
 
-            // On bascule sur Dispatchers.Default pour laisser le thread UI respirer
+            // On bascule sur Dispatchers.Default pour laisser le thread UI respirer (Attention Dispatchers Default peu potentielement creer de la friction ! a revoir dans le futur)
             withContext(Dispatchers.Default) {
                 pipeline.process()
             }
@@ -91,12 +113,24 @@ class VideoProcessingServiceV2(private val context: Context) {
     }
 
     /**
-     * Permet une annulation manuelle via le bouton "Annuler" de ton UI
+     * ## Cancel Processing
+     * Cancels the ongoing video processing.
+     *
+     * This method can be called from the UI, e.g., when a user presses a cancel button.
      */
     fun cancel() {
         isCancelled = true
     }
 
+    /**
+     * ## Create Output File
+     * Creates a unique output file for the processed video.
+     *
+     * Directory: Movies/LCDify for user visibility
+     * File name: "lcdify_<timestamp>.mp4"
+     *
+     * @return File object representing the output video.
+     */
     private fun createOutputFile(): File {
         // Movies/LCDify/ est un bon choix pour la visibilité utilisateur
         val moviesDir = context.getExternalFilesDir("Movies") ?: context.filesDir
