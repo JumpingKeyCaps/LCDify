@@ -72,6 +72,9 @@ The custom AGSL shader replicates the classic LCD aesthetic:
 ## Technical Architecture
 
 ### The "Tank" Pipeline (API 33+)
+
+Direct access to the core zero-copy GPU pipeline:      [GpuVideoPipeline](https://github.com/JumpingKeyCaps/LCDify/blob/master/app/src/main/java/com/lebaillyapp/lcdify/data/service/GpuVideoPipeline.kt)
+
 ```
 [ MediaExtractor ] ──> [ Hardware Decoder ]
                                ↓ 
