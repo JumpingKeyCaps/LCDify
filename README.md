@@ -11,7 +11,7 @@
 
 **GPU Video Pipeline for authentic Retro-LCD rendering.**
 
-LCDify is an advanced Android media processing engine that transforms modern video into pixel-perfect, dithered LCD visuals.
+LCDify is a technical exploration of GPU-first video processing on Android, focused on authentic Retro-LCD rendering.
 
 Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for maximum performance and fidelity.
 
@@ -29,19 +29,19 @@ Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for ma
 ## Why LCDify?
 
 ### High-Performance Engineering
-LCDify is built for creators who need heavy-duty video processing. By bypassing the CPU for pixel manipulation, it handles high-resolution video encoding with good stability.
+LCDify is built as a GPU-focused experiment for developers exploring advanced video processing techniques. By bypassing the CPU for pixel manipulation, it handles video encoding with consistent encoder behavior.
 
 **Key Technical Advantages:**
 - **Zero-Copy Architecture**: Pixels stay in VRAM. No expensive Bitmap conversions.
 - **Hardware-Accelerated**: Uses `MediaCodec` and `HardwareRenderer` for 1:1 GPU-to-Encoder throughput.
 - **AGSL Power**: Leverages Android Graphics Shading Language for single-pass complex math (Bayer, Luma, Quantization).
-- **Production-Ready**: Designed for offline preprocessing of long-form video content.
+- **Offline Processing Oriented**: Designed for short-form and experimental video preprocessing workflows.
 
 ---
 ## Versatility: Beyond LCDify
-- While this project focuses on Game Boy aesthetics, the underlying Tank Pipeline is designed as a universal GPU video processor.
-- Because the engine is decoupled from the visual logic, you can swap the AGSL shader to apply any real-time transformation : from VHS glitches and ASCII art to advanced color grading.
-- LCDify isn't just a filter; it's a robust infrastructure for anyone looking to bridge the gap between low-level Android MediaCodec and high-level AGSL shading.
+- The underlying Tank Pipeline demonstrates how a GPU video processor can be structured on Android.
+- Because the engine is decoupled from the visual logic, you can swap the AGSL shader to apply any real-time ("shader-based") transformation : from VHS glitches and ASCII art to advanced color grading.
+- LCDify isn't just a filter; it's a robust infrastructure for anyone looking to bridge the gap between low-level Android MediaCodec and high-level AGSL shading as a technical foundation and learning platform for GPU-driven media pipelines.
 
 
 ---
@@ -51,7 +51,7 @@ LCDify is built for creators who need heavy-duty video processing. By bypassing 
 ### Media Processing (V2 Engine)
 - **True GPU Pipeline**: HardwareBuffer → RuntimeShader → Surface Encoder.
 - **Format Support**: MP4, MOV, and high-res JPEG/PNG.
-- **Frame-Perfect Sync**: VSync-locked encoding for jitter-free output video.
+- **Frame-Perfect Sync**: VSync-aligned rendering for stable, encoder-friendly output.
 - **Background Processing**: Coroutine-powered pipeline with real-time progress tracking.
 
 ### Visual Effects
@@ -150,6 +150,8 @@ Uses a 4×4 ordered matrix to distribute quantization error and simulate graysca
 
 ## Roadmap
 
+This roadmap represents potential exploration axes rather than a committed product plan.
+
 ### Phase 1 - MVP  
 - [x] Functional AGSL shader
 - [x] Basic UI (selection, preview, export)
@@ -186,6 +188,7 @@ Uses a 4×4 ordered matrix to distribute quantization error and simulate graysca
 - Video preprocessing can be time-consuming (depends on length and resolution)
 - Intensive GPU usage during processing
 - Moderate memory consumption (frame-by-frame processing)
+- Optimized for short video clips (≤ 30s)
 
 ### Formats
 - **Video**: MP4, MOV (H.264/H.265 codec)
@@ -195,7 +198,7 @@ Uses a 4×4 ordered matrix to distribute quantization error and simulate graysca
 ---
 
 ## Project Philosophy
-LCDify isn't a toy filter—it's a **media engine**. It prioritizes technical efficiency and visual authenticity, giving developers and creators a robust tool to generate retro-digital aesthetics without the overhead of software-based rendering.
+LCDify isn't a toy filter, it's a **GPU media processing** exploration. Prioritizes technical efficiency and visual authenticity, giving developers a robust tool to generate retro-digital aesthetics without the overhead of software-based rendering.
 
 The shader prioritizes visual authenticity (fidelity to original hardware) while offering the flexibility needed for modern creative projects.
 
