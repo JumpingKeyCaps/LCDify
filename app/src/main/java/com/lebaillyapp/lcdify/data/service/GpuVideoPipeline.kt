@@ -1,5 +1,6 @@
 package com.lebaillyapp.lcdify.data.service
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
 import android.hardware.HardwareBuffer
@@ -58,6 +59,8 @@ import java.io.File
  * @property onProgress Callback invoked periodically with (currentFrame, totalFrames).
  * @property isCancelled Lambda returning true if the pipeline should abort early.
  */
+@SuppressLint("WrongConstant", "NewApi")
+@OptIn(ExperimentalUnsignedTypes::class)
 class GpuVideoPipeline(
         private val context: Context,
         @RawRes private val videoRes: Int,
@@ -292,7 +295,7 @@ class GpuVideoPipeline(
     private fun renderFrameShaderZeroCopy(image: Image, presentationTimeUs: Long) {
         val hBuffer = image.hardwareBuffer ?: return
 
-        // Wrap sans copie : on crée un shader que AGSL peut comprendre
+        // Wrap sans copie : on crée un shader que AGSL peut "comprendre" lol ^^
         val wrapBitmap = Bitmap.wrapHardwareBuffer(hBuffer, ColorSpace.get(ColorSpace.Named.SRGB)) ?: return
         val frameShader = BitmapShader(wrapBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
 
