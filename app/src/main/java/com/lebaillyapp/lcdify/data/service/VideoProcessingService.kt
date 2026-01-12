@@ -14,7 +14,6 @@ import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.media.MediaMuxer
 import android.net.Uri
-import android.os.Build
 import android.os.Environment
 import androidx.annotation.RawRes
 import com.lebaillyapp.lcdify.R
@@ -30,25 +29,34 @@ import java.io.File
 import kotlin.coroutines.coroutineContext
 
 /**
-* Ancien service de traitement vidéo - NE PAS UTILISER pour des shaders GPU réels
-*
-* Ce service applique un RuntimeShader (GPU) sur des Bitmaps via un Canvas CPU "offscreen".
-* Problématique :
-* 1. Un RuntimeShader est conçu pour être exécuté sur le GPU.
-* 2. Dessiner un shader GPU sur un canvas CPU force un rendu logiciel.
-* 3. Sur certaines configurations, cela échoue avec "software rendering doesn't support RuntimeShader".
-*
-* En résumé, cette approche fonctionne uniquement sur des Bitmaps classiques pour tests,
-* mais n’est pas fiable pour un vrai pipeline GPU. Il est préférable d’utiliser une Surface GPU
-* (via MediaCodec / Surface ou SurfaceTexture) pour passer la Bitmap au GPU.
-*
-* Pipeline approximatif du service :
-* 1. Extraction des métadonnées de la vidéo
-* 2. Décodage frame par frame via MediaMetadataRetriever
-* 3. Application du shader sur Bitmap CPU (problématique)
-* 4. Encodage H.264 via MediaCodec
-* 5. Muxing final via MediaMuxer
-*/
+ * ## **Legacy / CPU-based video processing service** - DO NOT USE !
+ *
+ * This service represents an **older approach** to video processing:
+ * - Uses MediaMetadataRetriever to decode frames on the CPU
+ * - Applies a RuntimeShader on Bitmaps via a CPU Canvas
+ * - Encodes frames back to H.264 via MediaCodec + MediaMuxer
+ *
+ * **Limitations:**
+ * 1. RuntimeShader is designed for GPU execution. Drawing it on a CPU Canvas
+ *    forces software rendering, which is slow and unreliable on some devices.
+ * 2. This pipeline does not support zero-copy GPU memory: frames are copied
+ *    from CPU to GPU, killing performance.
+ * 3. Some devices may throw "software rendering doesn't support RuntimeShader".
+ *
+ * **Usage:**
+ * Only useful for legacy tests or comparison with the CPU pipeline.
+ * For real GPU-accelerated shaders, use `VideoProcessingServiceV2` with
+ * `GpuVideoPipeline`.
+ *
+ * **Pipeline steps (legacy CPU approach):**
+ * 1. Extract metadata using MediaExtractor / MediaMetadataRetriever
+ * 2. Decode frames frame-by-frame on CPU
+ * 3. Apply RuntimeShader to Bitmaps (CPU Canvas)
+ * 4. Encode H.264 using MediaCodec
+ * 5. Mux final output using MediaMuxer
+ *
+ * @param context Android context for resources and file access
+ */
 class VideoProcessingService(private val context: Context) {
 
     private val shaderSource: String by lazy {
@@ -84,7 +92,12 @@ class VideoProcessingService(private val context: Context) {
     // =======================================
 
     /**
-     * Point d'entrée principal - Retourne un Flow qui émet les états
+     * ### Process Video
+     * Main entry point
+     * Returns a Flow emitting `ProcessingState` updates
+     *
+     * @param videoRes Raw resource ID of the input video
+     * @param config Shader configuration
      */
     fun processVideo(
         @RawRes videoRes: Int,
@@ -373,13 +386,19 @@ class VideoProcessingService(private val context: Context) {
     }
 
     /**
-     * Annule le traitement en cours
+     * ### Cancel
+     * Cancels ongoing processing
      */
     fun cancel() {
         isCancelled = true
     }
 
-    // Data classes internes
+    // =================================
+    // Internal / legacy classes & methods
+    // =================================
+    /**
+     * Legacy representation of video metadata for CPU pipeline
+     */
     private data class VideoMetadata(
         val width: Int,
         val height: Int,
@@ -388,6 +407,9 @@ class VideoProcessingService(private val context: Context) {
         val totalFrames: Int
     )
 
+    /**
+     * Internal data class to track encoder state
+     */
     private data class EncoderResult(
         val trackIndex: Int,
         val muxerStarted: Boolean
