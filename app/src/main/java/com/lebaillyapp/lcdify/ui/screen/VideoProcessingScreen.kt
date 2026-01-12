@@ -20,6 +20,19 @@ import com.lebaillyapp.lcdify.domain.ProcessingState
 import com.lebaillyapp.lcdify.domain.ShaderConfig
 import com.lebaillyapp.lcdify.ui.viewmodel.VideoProcessingViewModel
 
+/**
+ * # Main screen to display the video processing pipeline.
+ *
+ * Responsibilities:
+ * 1. Display current state of video processing (Idle, Decoding, Processing, Encoding, Success, Error)
+ * 2. Provide real-time progress feedback
+ * 3. Expose shader configuration sliders when idle
+ * 4. Trigger actions in the ViewModel (start, cancel, retry, update shader config)
+ *
+ * @param viewModel The VideoProcessingViewModel providing state and actions
+ * @param videoRes Raw resource ID of the video to process
+ * @param modifier Optional Modifier for layout customization
+ */
 @Composable
 fun VideoProcessingScreen(
     viewModel: VideoProcessingViewModel,
@@ -37,7 +50,7 @@ fun VideoProcessingScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
-        // Header
+        // Screen header
         Text(
             text = "LCDify Video Processor",
             style = MaterialTheme.typography.headlineMedium
@@ -45,7 +58,7 @@ fun VideoProcessingScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // État principal
+        // Display the current processing state
         when (val state = processingState) {
             is ProcessingState.Idle -> {
                 IdleState(
@@ -95,7 +108,7 @@ fun VideoProcessingScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Configuration panel (visible uniquement en Idle)
+        // Show shader configuration sliders only when idle
         AnimatedVisibility(visible = processingState is ProcessingState.Idle) {
             ConfigurationPanel(
                 config = shaderConfig,
@@ -108,6 +121,10 @@ fun VideoProcessingScreen(
     }
 }
 
+/**
+ * ### Card shown when no processing is happening.
+ * Allows user to start the video processing pipeline.
+ */
 @Composable
 private fun IdleState(
     onStartProcessing: () -> Unit
@@ -151,6 +168,13 @@ private fun IdleState(
     }
 }
 
+/**
+ * ### Generic card to show decoding / processing / encoding progress
+ *
+ * @param title Title of the step
+ * @param progress Current frame / total frames and ETA
+ * @param color Accent color for UI
+ */
 @Composable
 private fun ProcessingCard(
     title: String,
@@ -205,6 +229,13 @@ private fun ProcessingCard(
     }
 }
 
+/**
+ * ### Success card displayed when video processing finishes
+ *
+ * @param outputUri URI of the resulting video
+ * @param duration Total processing time in milliseconds
+ * @param onReset Action to reset the screen to Idle
+ */
 @Composable
 private fun SuccessState(
     outputUri: String,
@@ -262,6 +293,12 @@ private fun SuccessState(
     }
 }
 
+/**
+ * ### Error card displayed when processing fails
+ *
+ * @param message Error message
+ * @param onRetry Action to retry the processing
+ */
 @Composable
 private fun ErrorState(
     message: String,
@@ -308,6 +345,15 @@ private fun ErrorState(
     }
 }
 
+/**
+ * ### Slider panel for adjusting shader configuration values
+ *
+ * @param config Current shader configuration
+ * @param onScaleFactorChange Callback to update pixel size
+ * @param onDitheringChange Callback to update dithering strength
+ * @param onGridIntensityChange Callback to update grid opacity
+ * @param onGridSizeChange Callback to update grid size
+ */
 @Composable
 private fun ConfigurationPanel(
     config: ShaderConfig,
@@ -364,6 +410,15 @@ private fun ConfigurationPanel(
     }
 }
 
+/**
+ * ### Single slider component with label and optional percentage formatting
+ *
+ * @param label Slider title
+ * @param value Current slider value
+ * @param range Value range
+ * @param isPercentage True if value should be displayed as percentage
+ * @param onValueChange Callback when value changes
+ */
 @Composable
 private fun ConfigSlider(
     label: String,
@@ -395,6 +450,9 @@ private fun ConfigSlider(
     }
 }
 
+/**
+ * ### Utility function to format milliseconds into h/m/s
+ */
 private fun formatTime(millis: Long): String {
     val seconds = millis / 1000
     val minutes = seconds / 60
