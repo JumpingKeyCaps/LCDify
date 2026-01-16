@@ -295,7 +295,7 @@ class GpuVideoPipeline(
     private fun renderFrameShaderZeroCopy(image: Image, presentationTimeUs: Long) {
         val hBuffer = image.hardwareBuffer ?: return
 
-        // Wrap sans copie : on crée un shader que AGSL peut "comprendre" lol ^^
+        // Wrap sans copie : on crée un shader que AGSL peut "comprendre"
         val wrapBitmap = Bitmap.wrapHardwareBuffer(hBuffer, ColorSpace.get(ColorSpace.Named.SRGB)) ?: return
         val frameShader = BitmapShader(wrapBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
 
