@@ -15,11 +15,11 @@ import java.io.File
  * # GPU Video Pipeline EVO (Fixed Version for Android 13+)
  *
  * Version corrigée avec :
- * - Timestamps cohérents et croissants
- * - Synchronisation GPU améliorée
- * - acquireNextImage() pour ne perdre aucune frame
- * - Logs de debug pour diagnostiquer les problèmes
- * - Drain complet de l'encodeur avant stop
+ * - ✅ Timestamps cohérents et croissants
+ * - ✅ Synchronisation GPU améliorée
+ * - ✅ acquireNextImage() pour ne perdre aucune frame
+ * - ✅ Drain de l'encodeur après CHAQUE frame GPU
+ * - ✅ Logs de debug pour diagnostiquer les problèmes
  *
  * @property context Android context required for resource access.
  * @property videoRes Raw resource ID of the input video.
@@ -40,8 +40,6 @@ class GpuVideoPipelineEVO(
     private val onProgress: (currentFrame: Int, totalFrames: Int) -> Unit,
     private val isCancelled: () -> Boolean
 ) {
-
-    //Custom debug
     companion object {
         private const val TAG = "GpuVideoPipelineEVO"
         private const val ENABLE_DEBUG_LOGS = true
@@ -73,8 +71,6 @@ class GpuVideoPipelineEVO(
 
     /**
      * ## Process
-     * Starts the full video processing workflow: extraction, decoding, shader rendering, encoding.
-     * Ensures that all resources are released properly, even in case of an exception.
      */
     fun process() {
         try {
@@ -95,9 +91,6 @@ class GpuVideoPipelineEVO(
 
     /**
      * ## Setup Extractor
-     * Initializes the MediaExtractor to read the video from the raw resource.
-     * Also sets the video dimensions, total frame count, and video track index.
-     * @throws IllegalStateException if no video track is found.
      */
     private fun setupExtractor() {
         extractor = MediaExtractor().apply {
@@ -125,7 +118,6 @@ class GpuVideoPipelineEVO(
 
     /**
      * ## Setup Encoder
-     * Configures the MediaCodec for H.264 encoding and initializes the MediaMuxer.
      */
     private fun setupEncoder() {
         val encodeFormat = MediaFormat.createVideoFormat(
@@ -151,7 +143,6 @@ class GpuVideoPipelineEVO(
 
     /**
      * ## Setup Shader Renderer
-     * Sets up the RenderNode, HardwareRenderer, and RuntimeShader for applying the shader.
      */
     private fun setupShaderRenderer() {
         renderNode = RenderNode("LcdifyRenderNodeEVO").apply {
@@ -178,7 +169,6 @@ class GpuVideoPipelineEVO(
 
     /**
      * ## Setup Decoder
-     * Configures the MediaCodec for video decoding and the associated ImageReader.
      */
     private fun setupDecoder() {
         val format = extractor!!.getTrackFormat(videoTrackIndex)
@@ -198,12 +188,7 @@ class GpuVideoPipelineEVO(
     }
 
     /**
-     * ## Run Pipeline (Main Loop - FIXED VERSION)
-     * Main loop with all corrections applied:
-     * - Proper timestamp handling
-     * - acquireNextImage() instead of acquireLatestImage()
-     * - Complete encoder drain
-     * - Debug logging
+     * ## Run Pipeline (Main Loop - FIXED VERSION V2)
      */
     private fun runPipeline() {
         val bufferInfo = MediaCodec.BufferInfo()
@@ -243,18 +228,20 @@ class GpuVideoPipelineEVO(
                     val eos = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0
                     val presentationTimeUs = bufferInfo.presentationTimeUs
 
-                    // Release to ImageReader surface
                     decoder!!.releaseOutputBuffer(outIndex, true)
 
-                    // FIX: Use acquireNextImage() to get ALL frames
                     val img = imageReader!!.acquireNextImage()
                     img?.let {
                         renderFrameShaderZeroCopy(it, presentationTimeUs)
                         it.close()
                         decodedFrameCount++
+
+                        // ✅ CRITICAL: Drain encoder after each GPU frame
+                        encodedFrameCount = drainEncoderAfterFrame(bufferInfo, encodedFrameCount)
+
                         if (decodedFrameCount % 10 == 0) {
                             onProgress(decodedFrameCount, totalFrames)
-                            logDebug("📊 Progress: $decodedFrameCount/$totalFrames frames decoded")
+                            logDebug("📊 Progress: $decodedFrameCount/$totalFrames decoded, $encodedFrameCount encoded")
                         }
                     } ?: logDebug("⚠️ No image available from ImageReader")
 
@@ -266,17 +253,16 @@ class GpuVideoPipelineEVO(
                 }
             }
 
-            // --- Drain encoder ---
-            var encoderOutputAvailable = true
-            while (encoderOutputAvailable) {
-                val outIndex = encoder!!.dequeueOutputBuffer(bufferInfo, 0)
+            // --- Final encoder drain after decoder EOS ---
+            if (decoderDone && !encoderDone) {
+                val outIndex = encoder!!.dequeueOutputBuffer(bufferInfo, 10_000)
                 when {
                     outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                         if (!muxerStarted) {
                             muxerTrackIndex = muxer!!.addTrack(encoder!!.outputFormat)
                             muxer!!.start()
                             muxerStarted = true
-                            logDebug("🎥 Muxer started, track index: $muxerTrackIndex")
+                            logDebug("🎥 Muxer started (late), track index: $muxerTrackIndex")
                         }
                     }
 
@@ -287,16 +273,10 @@ class GpuVideoPipelineEVO(
                             buf.position(bufferInfo.offset)
                             buf.limit(bufferInfo.offset + bufferInfo.size)
 
-                            // ✅ FIX: Compute timestamp BEFORE incrementing counter
                             val frameTimeUs = encodedFrameCount * 1_000_000L / frameRate
                             bufferInfo.presentationTimeUs = frameTimeUs
 
                             muxer!!.writeSampleData(muxerTrackIndex, buf, bufferInfo)
-
-                            if (encodedFrameCount % 30 == 0) {
-                                logDebug("💾 Encoded frame $encodedFrameCount @ ${frameTimeUs}µs")
-                            }
-
                             encodedFrameCount++
                         }
 
@@ -304,12 +284,9 @@ class GpuVideoPipelineEVO(
 
                         if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                             encoderDone = true
-                            encoderOutputAvailable = false
                             logDebug("✅ Encoder EOS received, $encodedFrameCount frames encoded")
                         }
                     }
-
-                    else -> encoderOutputAvailable = false
                 }
             }
         }
@@ -318,11 +295,66 @@ class GpuVideoPipelineEVO(
     }
 
     /**
-     * ## Render Frame with Shader - FIXED VERSION
-     * Applies the shader with improved GPU synchronization.
-     *
-     * @param image Decoded frame from the ImageReader
-     * @param presentationTimeUs Presentation timestamp of the frame in microseconds
+     * ## Drain Encoder After Frame
+     * Forces encoder to process the frame just rendered to surface.
+     */
+    private fun drainEncoderAfterFrame(bufferInfo: MediaCodec.BufferInfo, currentCount: Int): Int {
+        var encodedCount = currentCount
+        var attempts = 0
+
+        while (attempts < 10) {
+            val outIndex = encoder!!.dequeueOutputBuffer(bufferInfo, 10_000)
+
+            when {
+                outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                    if (!muxerStarted) {
+                        muxerTrackIndex = muxer!!.addTrack(encoder!!.outputFormat)
+                        muxer!!.start()
+                        muxerStarted = true
+                        logDebug("🎥 Muxer started, track index: $muxerTrackIndex")
+                    }
+                }
+
+                outIndex >= 0 -> {
+                    val buf = encoder!!.getOutputBuffer(outIndex)!!
+
+                    if (bufferInfo.size > 0 && muxerStarted) {
+                        buf.position(bufferInfo.offset)
+                        buf.limit(bufferInfo.offset + bufferInfo.size)
+
+                        val frameTimeUs = encodedCount * 1_000_000L / frameRate
+                        bufferInfo.presentationTimeUs = frameTimeUs
+
+                        muxer!!.writeSampleData(muxerTrackIndex, buf, bufferInfo)
+
+                        if (encodedCount % 30 == 0) {
+                            logDebug("💾 Encoded frame $encodedCount @ ${frameTimeUs}µs")
+                        }
+
+                        encodedCount++
+                    }
+
+                    encoder!!.releaseOutputBuffer(outIndex, false)
+                    break // Got a frame, done
+                }
+
+                else -> {
+                    attempts++
+                    try {
+                        Thread.sleep(10)
+                    } catch (e: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        break
+                    }
+                }
+            }
+        }
+
+        return encodedCount
+    }
+
+    /**
+     * ## Render Frame with Shader - FIXED VERSION V2
      */
     private fun renderFrameShaderZeroCopy(image: Image, presentationTimeUs: Long) {
         val hBuffer = image.hardwareBuffer ?: return
@@ -345,15 +377,13 @@ class GpuVideoPipelineEVO(
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
         renderNode!!.endRecording()
 
-        // FIX: Improved GPU sync
         hardwareRenderer!!.createRenderRequest()
             .setVsyncTime(presentationTimeUs * 1000)
             .syncAndDraw()
 
-        // FIX: Small delay to ensure GPU commit (temporary fix for POC)
-        // In production, use GPU fences instead
+        // Give GPU time to commit
         try {
-            Thread.sleep(1)
+            Thread.sleep(16)
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
         }
@@ -363,7 +393,6 @@ class GpuVideoPipelineEVO(
 
     /**
      * ## Release Resources
-     * Releases all resources with proper error handling.
      */
     private fun release() {
         logDebug("🧹 Releasing resources")
@@ -386,10 +415,6 @@ class GpuVideoPipelineEVO(
         logDebug("✅ Resources released")
     }
 
-    /**
-     * ## Debug Logging
-     * Centralized logging with enable/disable flag.
-     */
     private fun logDebug(message: String) {
         if (ENABLE_DEBUG_LOGS) {
             Log.d(TAG, message)
