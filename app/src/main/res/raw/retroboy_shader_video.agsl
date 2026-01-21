@@ -19,26 +19,31 @@ uniform half4 palette3;
 // Precomputed Bayer matrix for dithering performance (GPU)
 // Const array Bayer
 
-//OG float version!
-const float bayerOG[16] = {
-    0.0, 0.5, 0.125, 0.625,
-    0.75, 0.25, 0.875, 0.375,
-    0.1875, 0.6875, 0.0625, 0.5625,
-    0.9375, 0.4375, 0.8125, 0.3125
-};
+
 
 //Compile-safe int version !
-const float bayer[16] = {
-    0.0/16.0, 8.0/16.0, 2.0/16.0, 10.0/16.0,
-    12.0/16.0, 4.0/16.0, 14.0/16.0, 6.0/16.0,
-    3.0/16.0, 11.0/16.0, 1.0/16.0, 9.0/16.0,
-    15.0/16.0, 7.0/16.0, 13.0/16.0, 5.0/16.0
-};
-
 float getBayerValue(int x, int y) {
     int ix = int(mod(float(x), 4.0));
     int iy = int(mod(float(y), 4.0));
-    return bayer[iy * 4 + ix];
+
+    // Inline “switch” version safe pour AGSL
+    int index = iy * 4 + ix;
+    if (index == 0) return 0.0/16.0;
+    if (index == 1) return 8.0/16.0;
+    if (index == 2) return 2.0/16.0;
+    if (index == 3) return 10.0/16.0;
+    if (index == 4) return 12.0/16.0;
+    if (index == 5) return 4.0/16.0;
+    if (index == 6) return 14.0/16.0;
+    if (index == 7) return 6.0/16.0;
+    if (index == 8) return 3.0/16.0;
+    if (index == 9) return 11.0/16.0;
+    if (index == 10) return 1.0/16.0;
+    if (index == 11) return 9.0/16.0;
+    if (index == 12) return 15.0/16.0;
+    if (index == 13) return 7.0/16.0;
+    if (index == 14) return 13.0/16.0;
+    return 5.0/16.0;
 }
 
 
