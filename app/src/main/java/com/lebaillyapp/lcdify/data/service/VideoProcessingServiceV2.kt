@@ -126,14 +126,14 @@ class VideoProcessingServiceV2(private val context: Context) {
      * ## Create Output File
      * Creates a unique output file for the processed video.
      *
-     * Directory: Movies/LCDify for user visibility
+     * Directory: VideoOutput/LCDify for user visibility
      * File name: "lcdify_<timestamp>.mp4"
      *
      * @return File object representing the output video.
      */
     private fun createOutputFile(): File {
         // Movies/LCDify/ est un bon choix pour la visibilité utilisateur
-        val moviesDir = context.getExternalFilesDir("Movies") ?: context.filesDir
+        val moviesDir = context.getExternalFilesDir("VideoOutput") ?: context.filesDir
         val lcdifyDir = File(moviesDir, "LCDify")
         if (!lcdifyDir.exists()) lcdifyDir.mkdirs()
 
