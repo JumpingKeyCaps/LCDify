@@ -66,7 +66,7 @@ class VideoProcessingServiceV2(private val context: Context) {
             val outputFile = createOutputFile()
 
             // Initialisation du pipeline avec la config de l'utilisateur
-            val pipeline = GpuVideoPipeline(
+            val pipeline = GpuVideoPipelineEVO(
                 context = context,
                 videoRes = videoRes,
                 outputFile = outputFile,
