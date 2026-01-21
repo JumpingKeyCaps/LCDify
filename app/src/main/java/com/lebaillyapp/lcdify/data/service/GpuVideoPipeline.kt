@@ -213,7 +213,7 @@ class GpuVideoPipeline(
      *
      * Handles end-of-stream flags and progress callbacks.
      */
-    private fun runPipeline() {
+    private fun runPipelineOG() {
         val bufferInfo = MediaCodec.BufferInfo()
         var extractorDone = false
         var decoderDone = false
@@ -284,6 +284,92 @@ class GpuVideoPipeline(
             }
         }
     }
+
+    private fun runPipeline() {
+        val bufferInfo = MediaCodec.BufferInfo()
+        var extractorDone = false
+        var decoderDone = false
+        var encoderDone = false
+        var frameCount = 0
+
+        val format = extractor!!.getTrackFormat(videoTrackIndex)
+        val frameRate = format.getInteger(MediaFormat.KEY_FRAME_RATE, 30)
+        var encodeFrameCount = 0
+
+        while (!encoderDone && !isCancelled()) {
+            // --- Feed decoder from extractor ---
+            if (!extractorDone) {
+                val inputIndex = decoder!!.dequeueInputBuffer(10_000)
+                if (inputIndex >= 0) {
+                    val buf = decoder!!.getInputBuffer(inputIndex)!!
+                    val size = extractor!!.readSampleData(buf, 0)
+                    if (size < 0) {
+                        decoder!!.queueInputBuffer(inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        extractorDone = true
+                    } else {
+                        decoder!!.queueInputBuffer(inputIndex, 0, size, extractor!!.sampleTime, 0)
+                        extractor!!.advance()
+                    }
+                }
+            }
+
+            // --- Process decoder output ---
+            if (!decoderDone) {
+                val outIndex = decoder!!.dequeueOutputBuffer(bufferInfo, 10_000)
+                if (outIndex >= 0) {
+                    val eos = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0
+                    val presentationTimeUs = bufferInfo.presentationTimeUs
+
+                    decoder!!.releaseOutputBuffer(outIndex, true)
+
+                    val img = imageReader!!.acquireLatestImage()
+                    img?.let {
+                        renderFrameShaderZeroCopy(it, presentationTimeUs)
+                        it.close()
+                        frameCount++
+                        if (frameCount % 10 == 0) onProgress(frameCount, totalFrames)
+                    }
+
+                    if (eos) {
+                        decoderDone = true
+                        encoder!!.signalEndOfInputStream()
+                    }
+                }
+            }
+
+            // --- Drain encoder ---
+            while (true) {
+                val outIndex = encoder!!.dequeueOutputBuffer(bufferInfo, 0)
+                when {
+                    outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        muxerTrackIndex = muxer!!.addTrack(encoder!!.outputFormat)
+                        muxer!!.start()
+                        muxerStarted = true
+                    }
+                    outIndex >= 0 -> {
+                        val buf = encoder!!.getOutputBuffer(outIndex)!!
+                        if (bufferInfo.size > 0 && muxerStarted) {
+                            buf.position(bufferInfo.offset)
+                            buf.limit(bufferInfo.offset + bufferInfo.size)
+
+                            // FIX : réécriture du timestamp basé sur le compteur de frames
+                            bufferInfo.presentationTimeUs = encodeFrameCount * 1_000_000L / frameRate
+                            muxer!!.writeSampleData(muxerTrackIndex, buf, bufferInfo)
+                            encodeFrameCount++
+                        }
+                        encoder!!.releaseOutputBuffer(outIndex, false)
+
+                        if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                            encoderDone = true
+                            break
+                        }
+                    }
+                    else -> break
+                }
+            }
+        }
+    }
+
 
     /**
      * ## Render Frame with Shader
