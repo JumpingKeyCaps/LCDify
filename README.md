@@ -35,21 +35,30 @@ This project started with an ambitious goal:
 
 ### The Hard Truth:
 
-After extensive testing, i discovered a fundamental Android architecture limitation:
+After extensive testing, I discovered a fundamental Android architecture limitation:
 
 -  AGSL/RuntimeShader works perfectly with HardwareRenderer
 -  HardwareRenderer renders beautifully to View surfaces
 -  **BUT** HardwareRenderer cannot push frames to MediaCodec Input Surface
 
+**The failure is subtle:**
+
+The Surface is correctly configured and does receive frames from the shader (as confirmed by logs), but after 2–3 frames, EGL synchronization between the Skia rendering context (HardwareRenderer) and the MediaCodec encoding context breaks silently.
+
+The encoder continues to run but now ignores incoming frames, exposing a fundamental incompatibility between two GPU realms that both work with surfaces but were never designed to pipeline through the same one.
+
+
 ### Why?
 
 - HardwareRenderer is designed for the View system (UI rendering pipeline)
 - MediaCodec Input Surface expects content via OpenGL ES EGLContext
-These two systems don't interface—Android never intended them to connect
+These two systems don't interface—Android never intended them to connect...
 
 
 Despite proper GPU rendering (verified via logs: shader executes, frames render), the encoder only received 2-3 configuration frames out of 300+ processed frames.
+
 The GPU pipeline was **conceptually correct but architecturally incompatible**.
+
 The Pivot: Hybrid GPU-CPU Approach
 
 #### What Changed:
