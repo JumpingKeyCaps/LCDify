@@ -17,15 +17,16 @@ uniform half4 palette2;
 uniform half4 palette3;
 
 // Precomputed Bayer matrix for dithering performance (GPU)
+const float bayer[16] = {
+    0.0, 0.5, 0.125, 0.625,
+    0.75, 0.25, 0.875, 0.375,
+    0.1875, 0.6875, 0.0625, 0.5625,
+    0.9375, 0.4375, 0.8125, 0.3125
+};
+
 float getBayerValue(int x, int y) {
-    float ix = mod(float(x), 4.0);
-    float iy = mod(float(y), 4.0);
-    float bayer[16] = float[](
-        0.0, 0.5, 0.125, 0.625,
-        0.75, 0.25, 0.875, 0.375,
-        0.1875, 0.6875, 0.0625, 0.5625,
-        0.9375, 0.4375, 0.8125, 0.3125
-    );
+    int ix = int(mod(float(x), 4.0));
+    int iy = int(mod(float(y), 4.0));
     return bayer[iy * 4 + ix];
 }
 
