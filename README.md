@@ -27,7 +27,7 @@ Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for ma
 ---
 ## ⚠️ [UPDATE] Technical Reality Check: The Zero-Copy Challenge ⚠️
 
-### What i Learned
+### What I Learned
 
 This project started with an ambitious goal: 
 
@@ -125,7 +125,16 @@ The custom AGSL shader replicates the classic LCD aesthetic:
 
 ## Technical Architecture
 
+Note: The architecture below represents the original Zero-Copy design.
+See the [UPDATE] section above for the current Hybrid implementation details.
+
 ### The "Tank" Pipeline (API 33+)
+
+#### The Ideal Vision: Zero-Copy (Theoretical)
+The original goal was a 100% GPU-resident pipeline.
+
+While conceptually sound for UI, Android's `HardwareRenderer` lacks the native binding to pipe frames
+directly into a `MediaCodec` input surface without a shared EGL context.
 
 Direct access to the core zero-copy GPU pipeline:      [GpuVideoPipeline](https://github.com/JumpingKeyCaps/LCDify/blob/master/app/src/main/java/com/lebaillyapp/lcdify/data/service/GpuVideoPipeline.kt)
 
@@ -142,6 +151,29 @@ Direct access to the core zero-copy GPU pipeline:      [GpuVideoPipeline](https:
                                ↑
                   (Skia / HardwareRenderer)
 ```
+
+### The Current Pivot: Hybrid GPU-CPU Bridge
+
+To leverage the power of AGSL while ensuring compatibility with the Video Encoder, the pipeline now utilizes a high-performance "Bitmap Bridge".
+
+The shader still does the heavy lifting on the GPU, but the frame transfer is managed via a synchronized Canvas lock to bridge the gap between the View system and MediaCodec.
+
+```
+[ MediaExtractor ] ──> [ Hardware Decoder ]
+                               ↓ 
+                       (HardwareBuffer)
+                               ↓
+[ MediaMuxer ]      <── [ Hardware Encoder ]
+       ↑                       ↑ 
+  (Final MP4)            (Surface/Canvas) 
+                               ↑
+                      [ Bitmap Bridge ]  <── (Frame Sync)
+                               ↑
+                    [ AGSL RuntimeShader ] 
+                               ↑
+                       [ GPU Rendering ]
+```
+
 
 ### Tech Stack
 
