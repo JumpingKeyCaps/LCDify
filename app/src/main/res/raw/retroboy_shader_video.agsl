@@ -18,8 +18,8 @@ uniform half4 palette3;
 
 // Precomputed Bayer matrix for dithering performance (GPU)
 float getBayerValue(int x, int y) {
-    int ix = x % 4;
-    int iy = y % 4;
+    float ix = mod(float(x), 4.0);
+    float iy = mod(float(y), 4.0);
     float bayer[16] = float[](
         0.0, 0.5, 0.125, 0.625,
         0.75, 0.25, 0.875, 0.375,
