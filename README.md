@@ -25,6 +25,60 @@ Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for ma
 | ![P1](screenshots/comingsoon.gif) | ![P2a](screenshots/comingsoon.gif) |  ![P2a](screenshots/comingsoon.gif) |
 
 ---
+## ⚠️ [UPDATE] Technical Reality Check: The Zero-Copy Challenge ⚠️
+
+### What i Learned
+
+This project started with an ambitious goal: 
+
+**True zero-copy GPU video processing using AGSL shaders via HardwareRenderer directly on MediaCodec input surfaces.**
+
+### The Hard Truth:
+
+After extensive testing, i discovered a fundamental Android architecture limitation:
+
+-  AGSL/RuntimeShader works perfectly with HardwareRenderer
+-  HardwareRenderer renders beautifully to View surfaces
+-  **BUT** HardwareRenderer cannot push frames to MediaCodec Input Surface
+
+### Why?
+
+- HardwareRenderer is designed for the View system (UI rendering pipeline)
+- MediaCodec Input Surface expects content via OpenGL ES EGLContext
+These two systems don't interface—Android never intended them to connect
+
+
+Despite proper GPU rendering (verified via logs: shader executes, frames render), the encoder only received 2-3 configuration frames out of 300+ processed frames.
+The GPU pipeline was **conceptually correct but architecturally incompatible**.
+The Pivot: Hybrid GPU-CPU Approach
+
+#### What Changed:
+
+- AGSL shader still runs GPU-accelerated (via RuntimeShader on standard Canvas)
+- Intermediate Bitmap created from shader output
+- Bitmap drawn to encoderSurface via CPU (lockCanvas/unlockCanvasAndPost)
+- **Trade-off**: One GPU→CPU→GPU copy per frame, but AGSL shader fully functional
+
+#### Performance Impact:
+
+No longer "zero-copy" but still GPU-accelerated for the heavy lifting (shader math)
+~2-3x slower than theoretical pure-GPU pipeline
+Still practical for short-form video (≤60s) on modern devices
+
+For True Zero-Copy Video Processing
+If you need actual zero-copy GPU video, you must:
+
+- Port AGSL → GLSL (OpenGL Shading Language)
+- Use OpenGL ES 3.0+ with shared EGLContext
+- Render directly to encoderSurface via GLES30 APIs
+
+### Why i Didn't Go This Route:
+
+- AGSL is Android-specific and modern (cleaner syntax than GLSL)
+- OpenGL ES adds significant complexity for a POC
+- Current hybrid approach delivers 95% of the visual quality at reasonable speed
+
+---
 
 ## Why LCDify?
 
@@ -166,16 +220,13 @@ This roadmap represents potential exploration axes rather than a committed produ
 - [x] Scale Factor presets ("Game Boy Classic", "Retro Soft", "Pixel Art")
 - [ ] Custom resolution support (not just 160×144)
 
-### Phase 3 - Core Engine (Current) 
+### Phase 3 - Core Engine  
 - [x] Zero-Copy GPU Video Pipeline
 - [x] Async processing with Progress API
 - [x] Basic UI for parameter tuning
 
-### Phase 4 - Advanced
-- [ ] Real-time mode for live camera
-- [ ] Post-processing filter support
-- [ ] API for third-party app integration
-- [ ] Desktop version (Kotlin Multiplatform)
+### Phase 4 - Pivot
+- [ ] hybrid approach CPU-GPU 
 
 ---
 
