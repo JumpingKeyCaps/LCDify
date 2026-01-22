@@ -47,6 +47,13 @@ The Surface is correctly configured and does receive frames from the shader (as 
 
 The encoder continues to run but now ignores incoming frames, exposing a fundamental incompatibility between two GPU realms that both work with surfaces but were never designed to pipeline through the same one.
 
+<p align="start">
+  <img src="screenshots/Lcdify_debuglog_2.png" width="800" alt="Debug Log showing sync failure">
+  <br>
+  <em>Logcat showing the sync break: 300+ decoded frames vs 2 encoded.</em>
+</p>
+
+
 ### Analogy:
 
 It's like having two tables (the shader and hardware encoder) in the same restaurant (the GPU), both accepting food only on red trays.
@@ -278,7 +285,7 @@ This roadmap represents potential exploration axes rather than a committed produ
 - [ ] Custom resolution support (not just 160×144)
 
 ### Phase 3 - Core Engine  
-- [x] Zero-Copy GPU Video Pipeline
+- [x] Zero-Copy GPU Video Pipeline (Attempted - see Update)
 - [x] Async processing with Progress API
 - [x] Basic UI for parameter tuning
 
