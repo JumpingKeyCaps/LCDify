@@ -13,7 +13,7 @@
 
 LCDify is a technical exploration of GPU-first video processing on Android, focused on authentic Retro-LCD rendering.
 
-Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for maximum performance and fidelity.
+Unlike simple filter apps, LCDify aim the goal to implement a **Zero-Copy GPU Pipeline** for maximum performance and fidelity.
 
 --
 
@@ -25,31 +25,48 @@ Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for ma
 | ![P1](screenshots/comingsoon.gif) | ![P2a](screenshots/comingsoon.gif) |  ![P2a](screenshots/comingsoon.gif) |
 
 ---
-## ⚠️ [UPDATE] Technical Reality Check: The Zero-Copy Challenge ⚠️
+## ⚠️ [UPDATE] Technical Reality Check: The Zero-Copy Challenge (RIP) ⚠️
 
-### What i Learned
+## What I Learned
 
 This project started with an ambitious goal: 
 
 **True zero-copy GPU video processing using AGSL shaders via HardwareRenderer directly on MediaCodec input surfaces.**
 
-### The Hard Truth:
+## The Hard Truth:
 
-After extensive testing, i discovered a fundamental Android architecture limitation:
+After extensive testing, I discovered a fundamental Android architecture limitation:
 
 -  AGSL/RuntimeShader works perfectly with HardwareRenderer
 -  HardwareRenderer renders beautifully to View surfaces
 -  **BUT** HardwareRenderer cannot push frames to MediaCodec Input Surface
 
-### Why?
+### **The failure is subtle:**
+
+The Surface is correctly configured and does receive frames from the shader (as confirmed by logs), but after 2–3 frames, EGL synchronization between the Skia rendering context (HardwareRenderer) and the MediaCodec encoding context breaks silently.
+
+The encoder continues to run but now ignores incoming frames, exposing a fundamental incompatibility between two GPU realms that both work with surfaces but were never designed to pipeline through the same one.
+
+### Analogy:
+
+It's like having two tables (the shader and hardware encoder) in the same restaurant (the GPU), both accepting food only on red trays.
+
+While technically compatible, the restaurant never designed the system for tables to share food between them. 
+
+You can place the tray, but the waiter (Android's graphics pipeline) won't deliver it.
+
+
+## Why?
 
 - HardwareRenderer is designed for the View system (UI rendering pipeline)
 - MediaCodec Input Surface expects content via OpenGL ES EGLContext
-These two systems don't interface—Android never intended them to connect
+These two systems don't interface—Android never intended them to connect...
 
 
 Despite proper GPU rendering (verified via logs: shader executes, frames render), the encoder only received 2-3 configuration frames out of 300+ processed frames.
+
 The GPU pipeline was **conceptually correct but architecturally incompatible**.
+
 The Pivot: Hybrid GPU-CPU Approach
 
 #### What Changed:
@@ -72,7 +89,7 @@ If you need actual zero-copy GPU video, you must:
 - Use OpenGL ES 3.0+ with shared EGLContext
 - Render directly to encoderSurface via GLES30 APIs
 
-### Why i Didn't Go This Route:
+## Why i Didn't Go This Route:
 
 - AGSL is Android-specific and modern (cleaner syntax than GLSL)
 - OpenGL ES adds significant complexity for a POC
@@ -80,7 +97,9 @@ If you need actual zero-copy GPU video, you must:
 
 ---
 
-## Why LCDify?
+
+
+## Why LCDify? (Original goal)
 
 ### High-Performance Engineering
 LCDify is built as a GPU-focused experiment for developers exploring advanced video processing techniques. By bypassing the CPU for pixel manipulation, it handles video encoding with consistent encoder behavior.
@@ -125,7 +144,16 @@ The custom AGSL shader replicates the classic LCD aesthetic:
 
 ## Technical Architecture
 
+Note: The architecture below represents the original Zero-Copy design.
+See the [UPDATE] section above for the current Hybrid implementation details.
+
 ### The "Tank" Pipeline (API 33+)
+
+#### The Ideal Vision: Zero-Copy (Theoretical)
+The original goal was a 100% GPU-resident pipeline.
+
+While conceptually sound for UI, Android's `HardwareRenderer` lacks the native binding to pipe frames
+directly into a `MediaCodec` input surface without a shared EGL context.
 
 Direct access to the core zero-copy GPU pipeline:      [GpuVideoPipeline](https://github.com/JumpingKeyCaps/LCDify/blob/master/app/src/main/java/com/lebaillyapp/lcdify/data/service/GpuVideoPipeline.kt)
 
@@ -142,6 +170,35 @@ Direct access to the core zero-copy GPU pipeline:      [GpuVideoPipeline](https:
                                ↑
                   (Skia / HardwareRenderer)
 ```
+
+### The Current Pivot: Hybrid GPU-CPU Bridge
+
+To leverage the power of AGSL while ensuring compatibility with the Video Encoder, the pipeline now utilizes a high-performance "Bitmap Bridge".
+
+The shader still does the heavy lifting on the GPU, but the frame transfer is managed via a synchronized Canvas lock to bridge the gap between the View system and MediaCodec.
+
+The bitmap bridge step intentionally collapses the GPU frame into a CPU-resident image to satisfy MediaCodec’s input contract.
+
+```
+[ MediaExtractor ] ──> [ Hardware Decoder ]
+                               ↓
+                       (HardwareBuffer)
+                               ↓
+                    [ GPU Rendering (Skia) ]
+                               ↓
+                    [ AGSL RuntimeShader ]
+                               ↓
+             (GPU → CPU resolve + image freeze)
+                               ↓
+                    [ Bitmap / CPU pixels ]
+                               ↓
+             Canvas.lock / unlock (contract CPU)
+                               ↓
+                    [ MediaCodec Encoder ]
+                               ↓
+                          (Final MP4)
+```
+
 
 ### Tech Stack
 
