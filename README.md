@@ -177,20 +177,26 @@ To leverage the power of AGSL while ensuring compatibility with the Video Encode
 
 The shader still does the heavy lifting on the GPU, but the frame transfer is managed via a synchronized Canvas lock to bridge the gap between the View system and MediaCodec.
 
+The bitmap bridge step intentionally collapses the GPU frame into a CPU-resident image to satisfy MediaCodec’s input contract.
+
 ```
 [ MediaExtractor ] ──> [ Hardware Decoder ]
-                               ↓ 
+                               ↓
                        (HardwareBuffer)
                                ↓
-[ MediaMuxer ]      <── [ Hardware Encoder ]
-       ↑                       ↑ 
-  (Final MP4)            (Surface/Canvas) 
-                               ↑
-                      [ Bitmap Bridge ]  <── (Frame Sync)
-                               ↑
-                    [ AGSL RuntimeShader ] 
-                               ↑
-                       [ GPU Rendering ]
+                    [ GPU Rendering (Skia) ]
+                               ↓
+                    [ AGSL RuntimeShader ]
+                               ↓
+             (GPU → CPU resolve + image freeze)
+                               ↓
+                    [ Bitmap / CPU pixels ]
+                               ↓
+             Canvas.lock / unlock (contract CPU)
+                               ↓
+                    [ MediaCodec Encoder ]
+                               ↓
+                          (Final MP4)
 ```
 
 
