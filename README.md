@@ -13,7 +13,7 @@
 
 LCDify is a technical exploration of GPU-first video processing on Android, focused on authentic Retro-LCD rendering.
 
-Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for maximum performance and fidelity.
+Unlike simple filter apps, LCDify aim the goal to implement a **Zero-Copy GPU Pipeline** for maximum performance and fidelity.
 
 --
 
@@ -25,7 +25,7 @@ Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for ma
 | ![P1](screenshots/comingsoon.gif) | ![P2a](screenshots/comingsoon.gif) |  ![P2a](screenshots/comingsoon.gif) |
 
 ---
-## ⚠️ [UPDATE] Technical Reality Check: The Zero-Copy Challenge ⚠️
+## ⚠️ [UPDATE] Technical Reality Check: The Zero-Copy Challenge (RIP) ⚠️
 
 ## What I Learned
 
