@@ -14,12 +14,12 @@ import java.io.File
 /**
  * # GPU Video Pipeline EVO (Fixed Version for Android 13+)
  *
- * Version corrigée avec :
- * - ✅ Timestamps cohérents et croissants
- * - ✅ Synchronisation GPU améliorée
- * - ✅ acquireNextImage() pour ne perdre aucune frame
- * - ✅ Drain de l'encodeur après CHAQUE frame GPU
- * - ✅ Logs de debug pour diagnostiquer les problèmes
+ * A strict version of the original pipeline with some improvements to isolate the source of error :
+ * - Timestamps cohérents et croissants (Stable timestamp control)
+ * - Synchronisation GPU améliorée (GPU sync optimisation)
+ * - acquireNextImage() pour ne perdre aucune frame (no lost frame allowed)
+ * - Drain de l'encodeur après CHAQUE frame GPU (encoder drain after each GPU frame + delay)
+ * - Logs de debug pour diagnostiquer les problèmes (full log process + exceptions handling)
  *
  * @property context Android context required for resource access.
  * @property videoRes Raw resource ID of the input video.
