@@ -106,7 +106,7 @@ If you need actual zero-copy GPU video, you must:
 
 
 
-## Why LCDify? (Original goal)
+# Why LCDify? (Original goal)
 
 ### High-Performance Engineering
 LCDify is built as a GPU-focused experiment for developers exploring advanced video processing techniques. By bypassing the CPU for pixel manipulation, it handles video encoding with consistent encoder behavior.
