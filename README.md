@@ -41,7 +41,7 @@ After extensive testing, I discovered a fundamental Android architecture limitat
 -  HardwareRenderer renders beautifully to View surfaces
 -  **BUT** HardwareRenderer cannot push frames to MediaCodec Input Surface
 
-###**The failure is subtle:**
+### **The failure is subtle:**
 
 The Surface is correctly configured and does receive frames from the shader (as confirmed by logs), but after 2–3 frames, EGL synchronization between the Skia rendering context (HardwareRenderer) and the MediaCodec encoding context breaks silently.
 
