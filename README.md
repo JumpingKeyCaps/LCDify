@@ -27,13 +27,13 @@ Unlike simple filter apps, LCDify implements a **Zero-Copy GPU Pipeline** for ma
 ---
 ## ⚠️ [UPDATE] Technical Reality Check: The Zero-Copy Challenge ⚠️
 
-### What I Learned
+## What I Learned
 
 This project started with an ambitious goal: 
 
 **True zero-copy GPU video processing using AGSL shaders via HardwareRenderer directly on MediaCodec input surfaces.**
 
-### The Hard Truth:
+## The Hard Truth:
 
 After extensive testing, I discovered a fundamental Android architecture limitation:
 
@@ -41,14 +41,22 @@ After extensive testing, I discovered a fundamental Android architecture limitat
 -  HardwareRenderer renders beautifully to View surfaces
 -  **BUT** HardwareRenderer cannot push frames to MediaCodec Input Surface
 
-**The failure is subtle:**
+###**The failure is subtle:**
 
 The Surface is correctly configured and does receive frames from the shader (as confirmed by logs), but after 2–3 frames, EGL synchronization between the Skia rendering context (HardwareRenderer) and the MediaCodec encoding context breaks silently.
 
 The encoder continues to run but now ignores incoming frames, exposing a fundamental incompatibility between two GPU realms that both work with surfaces but were never designed to pipeline through the same one.
 
+### Analogy:
 
-### Why?
+It's like having two tables (the shader and hardware encoder) in the same restaurant (the GPU), both accepting food only on red trays.
+
+While technically compatible, the restaurant never designed the system for tables to share food between them. 
+
+You can place the tray, but the waiter (Android's graphics pipeline) won't deliver it.
+
+
+## Why?
 
 - HardwareRenderer is designed for the View system (UI rendering pipeline)
 - MediaCodec Input Surface expects content via OpenGL ES EGLContext
@@ -81,7 +89,7 @@ If you need actual zero-copy GPU video, you must:
 - Use OpenGL ES 3.0+ with shared EGLContext
 - Render directly to encoderSurface via GLES30 APIs
 
-### Why i Didn't Go This Route:
+## Why i Didn't Go This Route:
 
 - AGSL is Android-specific and modern (cleaner syntax than GLSL)
 - OpenGL ES adds significant complexity for a POC
@@ -89,7 +97,9 @@ If you need actual zero-copy GPU video, you must:
 
 ---
 
-## Why LCDify?
+
+
+## Why LCDify? (Original goal)
 
 ### High-Performance Engineering
 LCDify is built as a GPU-focused experiment for developers exploring advanced video processing techniques. By bypassing the CPU for pixel manipulation, it handles video encoding with consistent encoder behavior.
