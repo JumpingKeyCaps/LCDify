@@ -151,7 +151,7 @@ class GpuVideoPipelineEVO(
 
         hardwareRenderer = HardwareRenderer().apply {
             setContentRoot(renderNode)
-            setSurface(encoderSurface)
+            setSurface(encoderSurface) // <------ This is precisely where Android troll us ! ^^ ... and why the no-copy pipeline is fuck up!
         }
 
         runtimeShader = RuntimeShader(shaderSource).apply {
@@ -236,7 +236,7 @@ class GpuVideoPipelineEVO(
                         it.close()
                         decodedFrameCount++
 
-                        // ✅ CRITICAL: Drain encoder after each GPU frame
+                        // CRITICAL: Drain encoder after each GPU frame
                         encodedFrameCount = drainEncoderAfterFrame(bufferInfo, encodedFrameCount)
 
                         if (decodedFrameCount % 10 == 0) {
