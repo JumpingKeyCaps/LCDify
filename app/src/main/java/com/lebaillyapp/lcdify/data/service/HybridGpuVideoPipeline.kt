@@ -35,10 +35,10 @@ import java.io.File
  * ```
  *
  * ### Trade-off:
- * -  No longer "zero-copy" (one GPU→CPU→GPU round-trip per frame)
- * -  AGSL shader fully functional (heavy GPU math still accelerated)
- * -  Stable, reliable encoding (no EGL sync issues)
- * - ⚡ ~2-3x slower than theoretical pure-GPU, but practical for short videos
+ * - No longer "zero-copy" (one GPU→CPU→GPU round-trip per frame)
+ * - AGSL shader fully functional (heavy GPU math still accelerated)
+ * - Stable, reliable encoding (no EGL sync issues)
+ * - ~2-3x slower than theoretical pure-GPU, but practical for short videos
  *
  * @property context Android context required for resource access
  * @property videoRes Raw resource ID of the input video
@@ -79,6 +79,9 @@ class HybridGpuVideoPipeline(
     private var bitmapBridge: Bitmap? = null
     private val bitmapCanvas = Canvas()
     private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+
+    // Reusable Paint for final draw (performance optimization)
+    private val finalDrawPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 
     // Track indices and flags
     private var videoTrackIndex = -1
@@ -164,7 +167,7 @@ class HybridGpuVideoPipeline(
         }
 
         muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-        logDebug("🎬 Encoder configured: ${width}x${height} @ ${frameRate}fps, 6Mbps")
+        logDebug("Encoder configured: ${width}x${height} @ ${frameRate}fps, 6Mbps")
     }
 
     /**
@@ -263,7 +266,7 @@ class HybridGpuVideoPipeline(
                     // Acquire decoded frame from ImageReader
                     val img = imageReader!!.acquireNextImage()
                     img?.let {
-                        //  HYBRID BRIDGE: GPU shader → Bitmap → Encoder Surface
+                        // HYBRID BRIDGE: GPU shader → Bitmap → Encoder Surface
                         renderFrameHybrid(it, presentationTimeUs)
                         it.close()
                         decodedFrameCount++
@@ -295,7 +298,7 @@ class HybridGpuVideoPipeline(
                             muxerTrackIndex = muxer!!.addTrack(encoder!!.outputFormat)
                             muxer!!.start()
                             muxerStarted = true
-                            logDebug("🎥 Muxer started, track index: $muxerTrackIndex")
+                            logDebug("Muxer started, track index: $muxerTrackIndex")
                         }
                     }
 
@@ -325,14 +328,20 @@ class HybridGpuVideoPipeline(
     }
 
     /**
-     * ## Render Frame (Hybrid GPU→CPU→GPU Bridge)
+     * ## Render Frame (Hybrid GPU→CPU→GPU Bridge) - OPTIMIZED VERSION
      *
-     * This is the CRITICAL pivot implementation:
+     * This is the CRITICAL pivot implementation with performance optimizations:
      * 1. Wrap HardwareBuffer from decoder into Bitmap (GPU memory)
-     * 2. Apply AGSL shader to intermediate Bitmap (GPU-accelerated)
-     * 3. Lock encoder Surface Canvas (CPU contract)
-     * 4. Draw processed Bitmap to encoder Surface
-     * 5. Unlock and post to encoder
+     * 2. Create BitmapShader for this frame (unavoidable - new Bitmap each time)
+     * 3. Apply AGSL shader to intermediate Bitmap (GPU-accelerated)
+     * 4. Lock encoder Surface Canvas (CPU contract)
+     * 5. Draw processed Bitmap to encoder Surface
+     * 6. Unlock and post to encoder
+     *
+     * ### Performance Optimizations:
+     * - Paint objects allocated once and reused (bitmapPaint, finalDrawPaint)
+     * - Source Bitmap recycled immediately after shader input setup
+     * - Minimal allocations per frame (only BitmapShader is unavoidable)
      */
     private fun renderFrameHybrid(image: Image, presentationTimeUs: Long) {
         val hBuffer = image.hardwareBuffer ?: run {
@@ -350,29 +359,40 @@ class HybridGpuVideoPipeline(
         }
 
         try {
-            // Step 2: Apply AGSL shader to source (GPU processing)
+            // Step 2: Create BitmapShader for this frame
+            // Note: We MUST create a new shader per frame because sourceBitmap is different each time
             val frameShader = BitmapShader(
                 sourceBitmap,
                 Shader.TileMode.CLAMP,
                 Shader.TileMode.CLAMP
             )
+
+            // Step 3: Apply AGSL shader to source (GPU processing)
             runtimeShader?.setInputBuffer("inputFrame", frameShader)
 
             // Render shader output to intermediate Bitmap (GPU→CPU bridge)
             bitmapPaint.shader = runtimeShader
             bitmapCanvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bitmapPaint)
 
-            // Step 3-5: Transfer processed Bitmap to encoder Surface (CPU→GPU)
+            // Recycle source bitmap early (we're done with it)
+            sourceBitmap.recycle()
+
+            // Step 4-6: Transfer processed Bitmap to encoder Surface (CPU→GPU)
             val canvas = encoderSurface?.lockCanvas(null)
             if (canvas != null) {
-                canvas.drawBitmap(bitmapBridge!!, 0f, 0f, null)
+                canvas.drawBitmap(bitmapBridge!!, 0f, 0f, finalDrawPaint)
                 encoderSurface?.unlockCanvasAndPost(canvas)
             } else {
                 logDebug("Failed to lock encoder surface canvas")
             }
 
-        } finally {
-            sourceBitmap.recycle()
+        } catch (e: Exception) {
+            logDebug("Error in renderFrameHybrid: ${e.message}")
+            try {
+                sourceBitmap.recycle()
+            } catch (recycleError: Exception) {
+                // Bitmap already recycled, ignore
+            }
         }
     }
 
@@ -392,7 +412,7 @@ class HybridGpuVideoPipeline(
                         muxerTrackIndex = muxer!!.addTrack(encoder!!.outputFormat)
                         muxer!!.start()
                         muxerStarted = true
-                        logDebug("🎥 Muxer started, track index: $muxerTrackIndex")
+                        logDebug("Muxer started, track index: $muxerTrackIndex")
                     }
                 }
 
@@ -455,6 +475,7 @@ class HybridGpuVideoPipeline(
         imageReader?.close()
         encoderSurface?.release()
 
+        // Release bitmap bridge
         bitmapBridge?.recycle()
         bitmapBridge = null
 
