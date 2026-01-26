@@ -164,6 +164,9 @@ directly into a `MediaCodec` input surface without a shared EGL context.
 
 Direct access to the core zero-copy GPU pipeline:      [GpuVideoPipeline](https://github.com/JumpingKeyCaps/LCDify/blob/master/app/src/main/java/com/lebaillyapp/lcdify/data/service/GpuVideoPipeline.kt)
 
+The last try with a strict debug version to target precisely the source of fail:      [GpuVideoPipelineEVO](https://github.com/JumpingKeyCaps/LCDify/blob/master/app/src/main/java/com/lebaillyapp/lcdify/data/service/GpuVideoPipelineEVO.kt)
+
+
 ```
 [ MediaExtractor ] ──> [ Hardware Decoder ]
                                ↓ 
