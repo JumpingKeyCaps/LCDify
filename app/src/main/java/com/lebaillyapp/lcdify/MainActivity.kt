@@ -71,15 +71,15 @@ class MainActivity : ComponentActivity() {
                 //ThemeDemoScreen()
 
                 //todo - single bitmap demo
-            //    LCDifyFirstStep(drawableId = R.drawable.zina_serrious)
+                LCDifyFirstStep(drawableId = R.drawable.zina_serrious)
 
 
 
                 //todo - video processing screen demo
-                VideoProcessingScreen(
-                    viewModel = viewModel,
-                    videoRes = R.raw.test_video
-                )
+        //        VideoProcessingScreen(
+         //           viewModel = viewModel,
+          //          videoRes = R.raw.test_video
+          //      )
 
 
 
